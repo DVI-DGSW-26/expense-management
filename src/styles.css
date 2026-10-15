@@ -180,8 +180,14 @@ a {
   font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--primary-text);
+  text-decoration: none;
+  border-radius: var(--r-sm);
+}
+.brand:hover img {
+  transform: rotate(-8deg);
 }
 .brand img {
+  transition: transform 160ms ease-out;
   flex: none;
 }
 

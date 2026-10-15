@@ -1,4 +1,4 @@
-import { BrowserRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { LoginPage } from './auth/LoginPage';
 import { AccountsProvider } from './components/accounts';
@@ -56,10 +56,10 @@ function Shell() {
   return (
     <div className="shell">
       <aside className="side">
-        <div className="brand">
+        <Link to="/expenses" className="brand" aria-label="사무실 경비 홈 (경비)">
           <img src="/logo.png" alt="" width={40} height={40} />
           <span>사무실 경비</span>
-        </div>
+        </Link>
         <nav className="nav" aria-label="주 메뉴">
           {NAV.map((g) => (
             <div key={g.group} className="nav-group">
