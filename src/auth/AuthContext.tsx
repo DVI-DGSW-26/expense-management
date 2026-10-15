@@ -7,6 +7,8 @@ interface AuthState {
   me: Me | null;
   /** 토큰은 있는데 아직 /auth/me 를 확인 중 */
   checking: boolean;
+  /** 로그인 서버가 돌려보낸 실패 사유 (#error=) */
+  loginError: string | null;
   signIn: (accessToken: string, refreshToken?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -14,15 +16,27 @@ interface AuthState {
 const AuthContext = createContext<AuthState | null>(null);
 
 /**
- * 로그인 서버가 이 앱으로 돌려보낼 때 주소 조각(#accessToken=…&refreshToken=…)에
- * 토큰을 실어 보내면 받아서 저장한다.
+ * 로그인 서버가 이 앱의 /auth/callback 으로 돌려보낼 때 주소 조각에 실어 준
+ * 토큰(#token=…&refresh=…)을 받아 저장한다. 실패하면 #error= 로 사유가 온다.
+ * 주소 조각은 바로 지워 토큰이 방문 기록에 남지 않게 한다.
  */
-function takeTokensFromHash() {
+let hashError: string | null | undefined;
+
+/** 개발 모드(StrictMode)에서 초기화가 두 번 불려도 주소 조각은 한 번만 읽는다 */
+function takeTokensFromHashOnce(): string | null {
+  if (hashError === undefined) hashError = takeTokensFromHash();
+  return hashError;
+}
+
+function takeTokensFromHash(): string | null {
+  const onCallback = window.location.pathname === '/auth/callback';
   const hash = new URLSearchParams(window.location.hash.slice(1));
-  const access = hash.get('accessToken') ?? hash.get('access_token');
-  if (!access) return;
-  tokens.set(access, hash.get('refreshToken') ?? hash.get('refresh_token'));
-  history.replaceState(null, '', window.location.pathname + window.location.search);
+  const access = hash.get('token') ?? hash.get('accessToken') ?? hash.get('access_token');
+  const error = hash.get('error');
+  if (!access && !error && !onCallback) return null;
+  if (access) tokens.set(access, hash.get('refresh') ?? hash.get('refreshToken') ?? hash.get('refresh_token'));
+  history.replaceState(null, '', onCallback ? '/' : window.location.pathname + window.location.search);
+  return error;
 }
 
 /**
@@ -48,10 +62,8 @@ export function parseTokenInput(text: string): { access: string; refresh: string
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
-  const [checking, setChecking] = useState(() => {
-    takeTokensFromHash();
-    return !!tokens.access;
-  });
+  const [loginError] = useState(takeTokensFromHashOnce);
+  const [checking, setChecking] = useState(() => !!tokens.access);
 
   const load = useCallback(async () => {
     if (!tokens.access) {
@@ -97,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMe(null);
   }, []);
 
-  return <AuthContext.Provider value={{ me, checking, signIn, signOut }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ me, checking, loginError, signIn, signOut }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

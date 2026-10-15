@@ -1119,27 +1119,8 @@ textarea.input {
   margin: 6px 0 24px;
   color: var(--ink-2);
 }
-.login-steps {
-  margin: 0 0 22px;
-  padding: 0 0 0 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  color: var(--ink-2);
-  font-size: 14px;
-}
-.login-steps li::marker {
-  color: var(--form);
-  font-weight: 700;
-}
-.login-steps li {
-  display: list-item;
-}
-.login-steps .btn {
-  margin-bottom: 6px;
-}
-.login-steps span {
-  display: block;
+.login-more {
+  margin-top: 28px;
 }
 .login-more summary {
   cursor: pointer;

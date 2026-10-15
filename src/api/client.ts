@@ -2,6 +2,12 @@ import type { TokenResponse } from './types';
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'https://api.dvi-ind.com/expenses').replace(/\/$/, '');
 
+/**
+ * DVI 통합 로그인 시작 주소. 로그인이 끝나면 서버가
+ * `{FRONTEND_URL}/auth/callback#token=…&refresh=…` 로 돌려보낸다 (권한이 없으면 `#error=`).
+ */
+export const LOGIN_URL = `${API_BASE}/oauth2/authorization/keycloak`;
+
 /** 브라우저로 열면 DVI 통합 로그인 후 시험용 토큰을 보여주는 페이지 */
 export const TOKEN_PAGE_URL = `${API_BASE}/login/swagger`;
 

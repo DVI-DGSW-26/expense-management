@@ -22,12 +22,19 @@ VITE_API_BASE_URL=https://api.dvi-ind.com/expenses
 
 ## 로그인
 
-1. 로그인 화면의 **DVI 통합 로그인 열기**를 누르면 `/expenses/login/swagger` 가 새 탭에서 열립니다.
-2. 통합 로그인 후 표시되는 앱 토큰(수명 30분)을 복사해 붙여넣습니다.
-3. 갱신 핸들(refreshToken)도 함께 넣으면 토큰이 만료될 때 `/auth/refresh` 로 자동 갱신합니다.
+1. 로그인 화면의 **DVI 통합 로그인**을 누르면 `/expenses/oauth2/authorization/keycloak` 으로 이동합니다.
+2. 통합 로그인이 끝나면 API 서버가 `{FRONTEND_URL}/auth/callback#token=…&refresh=…` 로 돌려보내고, 앱이 토큰을 저장해 바로 로그인됩니다.
+   권한이 없으면 `#error=` 로 사유가 오고 로그인 화면에 표시됩니다.
+3. 앱 토큰(30분)이 만료되면 갱신 핸들로 `/auth/refresh` 를 불러 화면 이동 없이 이어서 씁니다.
 
-로그인 서버가 이 앱으로 `#accessToken=…&refreshToken=…` 을 붙여 돌려보내면 자동으로 로그인되도록 해 두었습니다.
-앱 전용 로그인 리다이렉트 엔드포인트가 생기면 로그인 버튼의 주소(`src/api/client.ts` 의 `TOKEN_PAGE_URL`)만 바꾸면 됩니다.
+배포 주소(예: `https://expense-management-zefa.vercel.app`)에서 쓰려면 API 서버에 두 가지가 맞아야 합니다.
+
+- `FRONTEND_URL` 이 그 배포 주소 — 로그인 후 돌아올 곳
+- CORS 허용 출처에 그 배포 주소 추가
+
+`/auth/callback` 같은 경로를 새로고침해도 열리도록 `vercel.json` 에서 모든 경로를 `index.html` 로 보냅니다.
+
+토큰 발급 페이지(`/expenses/login/swagger`)에서 받은 토큰을 붙여넣는 방식도 로그인 화면의 **토큰을 직접 붙여넣기**에 남겨 두었습니다.
 
 ## 화면
 
