@@ -1286,3 +1286,24 @@ tr.clickable:hover .attach-add {
   font-size: 14.5px;
   color: var(--muted);
 }
+
+/* ── 필수 입력 표시 ──────────────────────────────── */
+
+.req {
+  margin-left: 3px;
+  color: var(--stamp);
+  font-weight: 700;
+}
+.required-note {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--ink-2);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

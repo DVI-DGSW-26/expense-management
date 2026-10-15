@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { leaseApi } from '../api/endpoints';
 import type { LeaseCost, LeaseMonth } from '../api/types';
 import { Attachments, FilePicker } from '../components/Attachments';
-import { Amount, Field, LoadState, Modal, MoneyInput, YearStepper, moneyText, useAction, useAsync } from '../components/ui';
+import { Amount, Field, LoadState, Modal, MoneyInput, RequiredNote, YearStepper, moneyText, useAction, useAsync } from '../components/ui';
 import { money, parseMoney, thisYear } from '../lib/format';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -194,16 +194,17 @@ function LeaseForm({
 
   return (
     <form className="form-grid" onSubmit={submit}>
-      <Field label="귀속월" className="span-2" hint={initial ? '다른 달로 옮길 수 있습니다. 이미 등록된 달과 겹치면 저장되지 않습니다.' : undefined}>
+      <RequiredNote className="span-2" />
+      <Field label="귀속월" className="span-2" required hint={initial ? '다른 달로 옮길 수 있습니다. 이미 등록된 달과 겹치면 저장되지 않습니다.' : undefined}>
         <input className="input" type="month" value={ym} onChange={(e) => setYm(e.target.value)} required />
       </Field>
-      <Field label="임차비">
+      <Field label="임차비" required>
         <MoneyInput value={rent} onChange={setRent} required />
       </Field>
-      <Field label="관리비">
+      <Field label="관리비" required>
         <MoneyInput value={fee} onChange={setFee} required />
       </Field>
-      <Field label="전기세">
+      <Field label="전기세" required>
         <MoneyInput value={elec} onChange={setElec} required />
       </Field>
       <div className="field">

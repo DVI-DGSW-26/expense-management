@@ -139,18 +139,47 @@ export function Field({
   hint,
   children,
   className,
+  required,
 }: {
   label: string;
   hint?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** 꼭 입력해야 하는 칸이면 이름 옆에 * 표시 */
+  required?: boolean;
 }) {
   return (
     <label className={`field ${className ?? ''}`}>
-      <span className="field-label">{label}</span>
+      <span className="field-label">
+        {label}
+        {required && <RequiredMark />}
+      </span>
       {children}
       {hint && <span className="field-hint">{hint}</span>}
     </label>
+  );
+}
+
+function RequiredMark() {
+  return (
+    <>
+      <span className="req" aria-hidden>
+        *
+      </span>
+      <span className="sr-only">(필수)</span>
+    </>
+  );
+}
+
+/** 입력창 맨 위에 두는 필수 표시 안내 */
+export function RequiredNote({ className }: { className?: string }) {
+  return (
+    <p className={`required-note ${className ?? ''}`}>
+      <span className="req" aria-hidden>
+        *
+      </span>{' '}
+      표시는 꼭 입력해야 하는 칸입니다.
+    </p>
   );
 }
 

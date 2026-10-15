@@ -4,7 +4,7 @@ import { expenseApi } from '../api/endpoints';
 import type { Expense, ExpenseFields } from '../api/types';
 import { AccountSelect, useAccounts } from '../components/accounts';
 import { Attachments, FilePicker } from '../components/Attachments';
-import { Amount, Field, LoadState, Modal, MoneyInput, moneyText, useAction, useAsync } from '../components/ui';
+import { Amount, Field, LoadState, Modal, MoneyInput, RequiredNote, moneyText, useAction, useAsync } from '../components/ui';
 import { money, parseMoney, thisYear, todayIso } from '../lib/format';
 import { loadLedger, rangeBounds, rangeLabel, type Kind, type LeaseRow, type Range } from '../lib/ledger';
 import { LeaseModal, type LeaseTarget } from './LeasePage';
@@ -452,19 +452,20 @@ function ExpenseForm({
 
   return (
     <form className="form-grid" onSubmit={submit}>
-      <Field label="일자">
+      <RequiredNote className="span-2" />
+      <Field label="일자" required>
         <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
       </Field>
-      <Field label="차변계정">
+      <Field label="차변계정" required>
         <AccountSelect value={accountId} onChange={setAccountId} required emptyLabel="계정 선택" allowCreate />
       </Field>
-      <Field label="거래처" className="span-2">
+      <Field label="거래처" className="span-2" required>
         <input className="input" value={vendor} onChange={(e) => setVendor(e.target.value)} required />
       </Field>
-      <Field label="품명" className="span-2">
+      <Field label="품명" className="span-2" required>
         <input className="input" value={itemName} onChange={(e) => setItemName(e.target.value)} required />
       </Field>
-      <Field label="공급가액" hint="반품·취소는 음수(-)로 입력">
+      <Field label="공급가액" required hint="반품·취소는 음수(-)로 입력">
         <MoneyInput value={supply} onChange={setSupply} required allowNegative />
       </Field>
       <Field label="세액" hint="면세면 0">

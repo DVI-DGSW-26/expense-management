@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { subscriptionApi } from '../api/endpoints';
 import type { Cycle, Subscription, SubscriptionFields, SubscriptionPatch } from '../api/types';
 import { AccountSelect } from '../components/accounts';
-import { Amount, Field, LoadState, Modal, MoneyInput, moneyText, useAction, useAsync } from '../components/ui';
+import { Amount, Field, LoadState, Modal, MoneyInput, RequiredNote, moneyText, useAction, useAsync } from '../components/ui';
 import { money, parseMoney, todayIso } from '../lib/format';
 
 const CYCLES: { value: Cycle; label: string }[] = [
@@ -229,19 +229,20 @@ function SubscriptionModal({ sub, onClose, onSaved }: { sub: Subscription | null
   return (
     <Modal title={sub ? '구독 수정' : '구독 등록'} onClose={onClose}>
       <form className="form-grid" onSubmit={submit}>
-        <Field label="구독 이름" className="span-2">
+        <RequiredNote className="span-2" />
+        <Field label="구독 이름" className="span-2" required>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: ChatGPT Team, Microsoft 365" required />
         </Field>
-        <Field label="거래처" hint="생성되는 경비에 들어갑니다.">
+        <Field label="거래처" required hint="생성되는 경비에 들어갑니다.">
           <input className="input" value={vendor} onChange={(e) => setVendor(e.target.value)} required />
         </Field>
-        <Field label="차변계정">
+        <Field label="차변계정" required>
           <AccountSelect value={accountId} onChange={setAccountId} required emptyLabel="계정 선택" allowCreate />
         </Field>
-        <Field label="품명" className="span-2">
+        <Field label="품명" className="span-2" required>
           <input className="input" value={itemName} onChange={(e) => setItemName(e.target.value)} required />
         </Field>
-        <Field label="회당 공급가액">
+        <Field label="회당 공급가액" required>
           <MoneyInput value={supply} onChange={setSupply} required />
         </Field>
         <Field label="회당 세액">
@@ -250,7 +251,7 @@ function SubscriptionModal({ sub, onClose, onSaved }: { sub: Subscription | null
         <Field label="회당 합계" className="span-2" hint="비워 두면 공급가액 + 세액">
           <MoneyInput value={total} onChange={setTotal} placeholder={autoTotal !== null ? money(autoTotal) : ''} />
         </Field>
-        <Field label="결제 주기">
+        <Field label="결제 주기" required>
           <select className="input" value={cycle} onChange={(e) => setCycle(e.target.value as Cycle)}>
             {CYCLES.map((c) => (
               <option key={c.value} value={c.value}>
@@ -259,7 +260,7 @@ function SubscriptionModal({ sub, onClose, onSaved }: { sub: Subscription | null
             ))}
           </select>
         </Field>
-        <Field label="첫 결제일" hint="이후 결제일은 이 날짜를 기준으로 계산합니다.">
+        <Field label="첫 결제일" required hint="이후 결제일은 이 날짜를 기준으로 계산합니다.">
           <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
         </Field>
         <Field label="해지일" className="span-2" hint="이 날짜까지만 결제분을 만듭니다. 비워 두면 계속 결제합니다.">
