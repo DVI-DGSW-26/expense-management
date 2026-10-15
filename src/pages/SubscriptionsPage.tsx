@@ -230,13 +230,13 @@ function SubscriptionModal({ sub, onClose, onSaved }: { sub: Subscription | null
     <Modal title={sub ? '구독 수정' : '구독 등록'} onClose={onClose}>
       <form className="form-grid" onSubmit={submit}>
         <Field label="구독 이름" className="span-2">
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: Microsoft 365" required />
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: ChatGPT Team, Microsoft 365" required />
         </Field>
         <Field label="거래처" hint="생성되는 경비에 들어갑니다.">
           <input className="input" value={vendor} onChange={(e) => setVendor(e.target.value)} required />
         </Field>
         <Field label="차변계정">
-          <AccountSelect value={accountId} onChange={setAccountId} required emptyLabel="계정 선택" />
+          <AccountSelect value={accountId} onChange={setAccountId} required emptyLabel="계정 선택" allowCreate />
         </Field>
         <Field label="품명" className="span-2">
           <input className="input" value={itemName} onChange={(e) => setItemName(e.target.value)} required />

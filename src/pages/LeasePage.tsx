@@ -8,18 +8,18 @@ import { money, parseMoney, thisYear } from '../lib/format';
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /** 응답의 월 행에서 월 번호를 얻는다 (month 또는 yearMonth, 없으면 순서) */
-function monthOf(m: LeaseMonth, index: number) {
+export function monthOf(m: LeaseMonth, index: number) {
   if (m.month) return m.month;
   if (m.yearMonth) return Number(m.yearMonth.slice(5, 7));
   return index + 1;
 }
 
-type Editing = { id: number } | { yearMonth: string };
+export type LeaseTarget = { id: number } | { yearMonth: string };
 
 export function LeasePage() {
   const [year, setYear] = useState(thisYear());
   const table = useAsync(() => leaseApi.year(year), [year]);
-  const [editing, setEditing] = useState<Editing | null>(null);
+  const [editing, setEditing] = useState<LeaseTarget | null>(null);
   const data = table.data;
   const now = new Date();
   const currentYm = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
@@ -112,7 +112,7 @@ export function LeasePage() {
   );
 }
 
-function LeaseModal({ target, onClose, onSaved }: { target: Editing; onClose: () => void; onSaved: () => void }) {
+export function LeaseModal({ target, onClose, onSaved }: { target: LeaseTarget; onClose: () => void; onSaved: () => void }) {
   const id = 'id' in target ? target.id : null;
   const detail = useAsync(() => (id ? leaseApi.get(id) : Promise.resolve(null)), [id]);
   const run = useAction();

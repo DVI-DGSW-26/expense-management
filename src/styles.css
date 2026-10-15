@@ -1137,3 +1137,118 @@ textarea.input {
     transition: none !important;
   }
 }
+
+/* ── 경비 화면: 조회 조건 ───────────────────────────── */
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.filter-bar > .input {
+  width: auto;
+  min-width: 120px;
+}
+.filter-bar.secondary {
+  margin-bottom: 16px;
+}
+.filter-bar.secondary > .input {
+  flex: 1 1 160px;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--sheet);
+}
+.segmented button {
+  min-height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+.segmented button[aria-pressed='true'] {
+  background: var(--form);
+  color: var(--sheet);
+}
+
+.period {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.period .input {
+  width: auto;
+  min-width: 156px;
+}
+
+@media (max-width: 560px) {
+  .filter-bar > .input,
+  .period {
+    flex: 1 1 100%;
+  }
+  .period .input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* ── 경비 화면: 표 ──────────────────────────────── */
+
+.attach-count {
+  font-weight: 600;
+  color: var(--form);
+}
+.attach-add {
+  font-size: 13px;
+  color: var(--muted);
+}
+tr.clickable:hover .attach-add {
+  color: var(--form);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.disclosure::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: 8px;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  vertical-align: 1px;
+  transition: transform 120ms ease-out;
+}
+.disclosure[aria-expanded='true']::before {
+  transform: rotate(90deg);
+}
+
+.ledger tr.lease-row td {
+  background: color-mix(in srgb, var(--series-lease) 7%, var(--sheet));
+}
+.ledger tr.lease-row:hover td {
+  background: color-mix(in srgb, var(--series-lease) 13%, var(--sheet));
+}
+.ledger tr.lease-part td {
+  border-top: 1px dashed var(--rule);
+  background: color-mix(in srgb, var(--series-lease) 3%, var(--sheet));
+  font-size: 14px;
+}
+.ledger tr.lease-part td:nth-child(2) {
+  padding-left: 32px;
+}
+.part-detail {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+}

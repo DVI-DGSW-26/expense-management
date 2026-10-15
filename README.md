@@ -38,7 +38,7 @@ VITE_API_BASE_URL=https://api.dvi-ind.com/expenses
 
 | 경로 | 내용 | API |
 |---|---|---|
-| `/expenses` | 경비 목록·필터·합계, 등록/수정/삭제, 첨부파일 | `/expense`, `/attachment` |
+| `/expenses` | 경비와 임차관리비를 한 표로(연도·일자·거래처·품명·공급가액·세액·합계·차변계정·첨부파일), 연·월 또는 기간 조회, PDF 다운로드, 등록/수정/삭제, 첨부파일. 임차관리비는 한 줄로 묶이고 누르면 임대료(임차비+관리비)와 전기료로 펼쳐짐 | `/expense`, `/lease-cost`, `/attachment` |
 | `/subscriptions` | 구독 등록/수정, 일시중지·재개, 해지일, 결제 내역, 결제분 수동 생성 | `/subscription` |
 | `/lease` | 임차관리비 연간 12개월 표, 월별 등록/수정/삭제, 첨부파일 | `/lease-cost` |
 | `/summary` | 월별 지출 막대 그래프, 월별 표, 차변계정별 합계 | `/summary` |
