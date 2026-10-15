@@ -1072,16 +1072,48 @@ textarea.input {
 .account-add,
 .account-row {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: center;
 }
 .account-add {
-  grid-template-columns: minmax(0, 1fr) 96px auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   margin-bottom: 20px;
 }
-.order-input {
-  text-align: right;
+
+/* 끌기 손잡이: 점 여섯 개 */
+.drag-handle {
+  width: 44px;
+  height: 46px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle, var(--muted) 1.8px, transparent 2.2px) 0 0 / 9px 9px;
+  background-origin: content-box;
+  background-clip: content-box;
+  padding: 10px 13px;
+  cursor: grab;
+  touch-action: none;
+}
+.drag-handle:hover,
+.drag-handle:focus-visible {
+  border-color: var(--rule);
+  background-color: var(--form-soft);
+}
+.account-list.dragging,
+.account-list.dragging .drag-handle {
+  cursor: grabbing;
+  user-select: none;
+}
+.account-list li.is-dragging {
+  position: relative;
+  z-index: 1;
+  background: var(--form-soft);
+  box-shadow: 0 6px 18px rgb(10 20 50 / 0.14);
+  border-radius: var(--radius);
+}
+.account-list.saving {
+  opacity: 0.7;
 }
 .account-list {
   list-style: none;
@@ -1090,7 +1122,7 @@ textarea.input {
   border-top: 3px double var(--form);
 }
 .account-list li {
-  padding: 8px 0;
+  padding: 8px 8px 8px 0;
   border-bottom: 1px solid var(--rule);
 }
 
