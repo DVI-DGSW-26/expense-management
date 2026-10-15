@@ -11,8 +11,8 @@ npm run dev      # http://localhost:5173
 npm run build    # dist/ 에 정적 파일 생성
 ```
 
-API 서버의 CORS 허용 출처가 `http://localhost:5173` 이라서 개발 서버 포트를 5173 으로 고정했습니다.
-다른 주소로 배포하려면 API 서버의 CORS 허용 목록에 그 출처를 추가해야 합니다.
+API 서버의 CORS 허용 출처가 `http://localhost:5173` 과 `https://expense-management-zefa.vercel.app` 이라서 개발 서버 포트를 5173 으로 고정했습니다.
+다른 주소로 배포하려면 API 서버의 CORS 허용 목록과 로그인 리다이렉트 허용 목록에 그 출처를 추가해야 합니다.
 
 API 주소를 바꾸려면 `.env.local` 에 지정합니다 (`.env.example` 참고).
 
@@ -22,15 +22,13 @@ VITE_API_BASE_URL=https://api.dvi-ind.com/expenses
 
 ## 로그인
 
-1. 로그인 화면의 **DVI 통합 로그인**을 누르면 `/expenses/oauth2/authorization/keycloak` 으로 이동합니다.
-2. 통합 로그인이 끝나면 API 서버가 `{FRONTEND_URL}/auth/callback#token=…&refresh=…` 로 돌려보내고, 앱이 토큰을 저장해 바로 로그인됩니다.
+1. 로그인 화면의 **DVI 통합 로그인**을 누르면 `/expenses/oauth2/authorization/keycloak?redirect={지금 접속한 출처}` 로 이동합니다.
+2. 통합 로그인이 끝나면 API 서버가 `{출처}/auth/callback#token=…&refresh=…` 로 돌려보내고, 앱이 토큰을 저장해 바로 로그인됩니다.
    권한이 없으면 `#error=` 로 사유가 오고 로그인 화면에 표시됩니다.
 3. 앱 토큰(30분)이 만료되면 갱신 핸들로 `/auth/refresh` 를 불러 화면 이동 없이 이어서 씁니다.
 
-배포 주소(예: `https://expense-management-zefa.vercel.app`)에서 쓰려면 API 서버에 두 가지가 맞아야 합니다.
-
-- `FRONTEND_URL` 이 그 배포 주소 — 로그인 후 돌아올 곳
-- CORS 허용 출처에 그 배포 주소 추가
+`redirect` 는 서버 허용 목록(`http://localhost:5173`, `https://expense-management-zefa.vercel.app`) 안의 출처만 받습니다.
+목록에 없는 출처면 배포 주소로 돌아갑니다.
 
 `/auth/callback` 같은 경로를 새로고침해도 열리도록 `vercel.json` 에서 모든 경로를 `index.html` 로 보냅니다.
 
