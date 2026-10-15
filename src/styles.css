@@ -667,18 +667,18 @@ textarea.input {
   flex-direction: column;
   justify-content: center;
   gap: 2px;
-  min-width: 140px;
-  padding: 6px 16px;
+  min-width: 118px;
+  padding: 6px 14px;
   border-left: 1px solid var(--line);
 }
 .filter-item:first-child {
   border-left: 0;
 }
 .filter-grow {
-  flex: 1 1 140px;
+  flex: 1 1 120px;
 }
-.filter-item:last-child {
-  min-width: 200px;
+.filter-kind {
+  min-width: 186px;
 }
 .filter-item select.input {
   padding-right: 28px;
@@ -1463,4 +1463,17 @@ tr.clickable:hover .attach-add {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* 조회 조건 초기화 */
+.filter-reset {
+  min-width: 0;
+  justify-content: center;
+  margin-left: auto;
+}
+.state-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }

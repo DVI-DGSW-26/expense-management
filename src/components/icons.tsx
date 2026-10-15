@@ -90,3 +90,11 @@ export const SearchIcon = (p: IconProps) => (
     <path d="M20 20l-4.5-4.5" />
   </Svg>
 );
+
+/** 되돌리기 화살표 — 조건 초기화 */
+export const ResetIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 12a8 8 0 1 0 2.4-5.7" />
+    <path d="M4 4v4h4" />
+  </Svg>
+);

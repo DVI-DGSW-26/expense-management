@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { expenseApi } from '../api/endpoints';
 import type { Expense, ExpenseFields } from '../api/types';
 import { AccountSelect, useAccounts } from '../components/accounts';
-import { DownloadIcon, PlusIcon } from '../components/icons';
+import { DownloadIcon, PlusIcon, ResetIcon } from '../components/icons';
 import { Attachments, FilePicker } from '../components/Attachments';
 import { Amount, Field, LoadState, Modal, MoneyInput, RequiredNote, moneyText, useAction, useAsync } from '../components/ui';
 import { money, parseMoney, thisYear, todayIso } from '../lib/format';
@@ -19,7 +19,7 @@ const KIND_LABEL: Record<Kind, string> = {
 
 export function ExpensesPage() {
   // 집계 화면에서 넘어오면 ?year=…&account=… 로 연간 조회
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const now = new Date();
   const [mode, setMode] = useState<'month' | 'period'>('month');
   const [year, setYear] = useState(Number(params.get('year')) || thisYear());
@@ -42,6 +42,24 @@ export function ExpensesPage() {
     const t = setTimeout(() => setVendor(vendorInput.trim()), 300);
     return () => clearTimeout(t);
   }, [vendorInput]);
+
+  // 처음 화면의 조건: 이번 달, 거래처·계정·구분 없음
+  const defaultMonth = now.getMonth() + 1;
+  const filtered =
+    mode !== 'month' || year !== thisYear() || month !== defaultMonth || !!vendorInput || !!accountId || kind !== '';
+
+  function resetFilters() {
+    setMode('month');
+    setYear(thisYear());
+    setMonth(defaultMonth);
+    setFrom(`${thisYear()}-01-01`);
+    setTo(todayIso());
+    setVendorInput('');
+    setVendor('');
+    setAccountId('');
+    setKind('');
+    if (params.toString()) setParams({}, { replace: true });
+  }
 
   const range: Range = mode === 'month' ? { mode, year, month: month || null } : { mode, from, to };
   const ledger = useAsync(
@@ -153,7 +171,7 @@ export function ExpensesPage() {
           <span className="filter-label">차변계정</span>
           <AccountSelect value={accountId} onChange={setAccountId} emptyLabel="전체" />
         </label>
-        <label className="filter-item">
+        <label className="filter-item filter-kind">
           <span className="filter-label">구분</span>
           <select className="input" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
             <option value="">경비 + 임차관리비</option>
@@ -162,6 +180,18 @@ export function ExpensesPage() {
             <option value="LEASE">임차관리비</option>
           </select>
         </label>
+        <div className="filter-item filter-reset">
+          <button
+            type="button"
+            className="btn btn-soft btn-small"
+            onClick={resetFilters}
+            disabled={!filtered}
+            title="이번 달로 돌아가고 거래처·차변계정·구분 조건을 모두 지웁니다."
+          >
+            <ResetIcon size={18} />
+            초기화
+          </button>
+        </div>
       </section>
 
       {data && (
@@ -208,9 +238,17 @@ export function ExpensesPage() {
       {data && data.rows.length === 0 && (
         <div className="state">
           <p>{rangeLabel(range)}에 이 조건으로 등록된 내역이 없습니다.</p>
-          <button className="btn" onClick={() => setEditing('new')}>
-            경비 등록
-          </button>
+          <div className="state-actions">
+            {filtered && (
+              <button className="btn btn-soft" onClick={resetFilters}>
+                <ResetIcon size={18} />
+                조건 초기화
+              </button>
+            )}
+            <button className="btn" onClick={() => setEditing('new')}>
+              경비 등록
+            </button>
+          </div>
         </div>
       )}
 
