@@ -52,6 +52,7 @@ export function LoginPage() {
   return (
     <main className="login">
       <div className="login-sheet">
+        <img className="login-logo" src="/logo.png" alt="" width={88} height={88} />
         <h1 className="login-title">사무실 경비</h1>
         <p className="login-lede">경비, 임차관리비, 구독 결제를 한 장부에서 관리합니다.</p>
 

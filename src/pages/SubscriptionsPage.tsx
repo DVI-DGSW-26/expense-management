@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { subscriptionApi } from '../api/endpoints';
 import type { Cycle, Subscription, SubscriptionFields, SubscriptionPatch } from '../api/types';
 import { AccountSelect } from '../components/accounts';
+import { PlusIcon } from '../components/icons';
 import { Amount, Field, LoadState, Modal, MoneyInput, RequiredNote, moneyText, useAction, useAsync } from '../components/ui';
 import { money, parseMoney, todayIso } from '../lib/format';
 
@@ -15,7 +16,7 @@ const CYCLES: { value: Cycle; label: string }[] = [
 function statusOf(s: Subscription) {
   if (!s.active) return { label: '일시중지', cls: 'paused' };
   if (s.endDate && !s.nextChargeDate) return { label: '해지됨', cls: 'ended' };
-  if (s.endDate) return { label: `${s.endDate} 해지 예정`, cls: 'ending' };
+  if (s.endDate) return { label: '해지 예정', cls: 'ending' };
   return { label: '결제 중', cls: 'active' };
 }
 
@@ -60,6 +61,7 @@ export function SubscriptionsPage() {
         <div className="head-actions">
           <RunButton running={running} onRun={runCharges} />
           <button className="btn btn-primary" onClick={() => setEditing('new')}>
+            <PlusIcon size={18} />
             구독 등록
           </button>
         </div>
@@ -158,7 +160,7 @@ function RunButton({ running, onRun }: { running: boolean; onRun: () => Promise<
   const [result, setResult] = useState('');
   return (
     <button
-      className="btn"
+      className="btn btn-soft"
       disabled={running}
       title="매일 돌아가는 결제분 생성을 지금 실행합니다. 여러 번 눌러도 중복되지 않습니다."
       onClick={() =>

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { expenseApi } from '../api/endpoints';
 import type { Expense, ExpenseFields } from '../api/types';
 import { AccountSelect, useAccounts } from '../components/accounts';
+import { DownloadIcon, PlusIcon } from '../components/icons';
 import { Attachments, FilePicker } from '../components/Attachments';
 import { Amount, Field, LoadState, Modal, MoneyInput, RequiredNote, moneyText, useAction, useAsync } from '../components/ui';
 import { money, parseMoney, thisYear, todayIso } from '../lib/format';
@@ -79,71 +80,89 @@ export function ExpensesPage() {
       <header className="page-head">
         <h1>경비</h1>
         <div className="head-actions">
-          <button className="btn" onClick={exportPdf} disabled={!data || data.rows.length === 0 || exporting}>
+          <button className="btn btn-soft" onClick={exportPdf} disabled={!data || data.rows.length === 0 || exporting}>
+            <DownloadIcon size={18} />
             {exporting ? 'PDF 만드는 중…' : 'PDF 다운로드'}
           </button>
           <button className="btn btn-primary" onClick={() => setEditing('new')}>
+            <PlusIcon size={18} />
             경비 등록
           </button>
         </div>
       </header>
 
-      <div className="filter-bar">
-        <div className="segmented" role="group" aria-label="조회 방식">
-          <button type="button" aria-pressed={mode === 'month'} onClick={() => setMode('month')}>
-            연·월
-          </button>
-          <button type="button" aria-pressed={mode === 'period'} onClick={() => setMode('period')}>
-            기간 설정
-          </button>
+      <section className="filter-card" aria-label="조회 조건">
+        <div className="filter-item filter-mode">
+          <span className="filter-label">조회 방식</span>
+          <div className="segmented" role="group" aria-label="조회 방식">
+            <button type="button" aria-pressed={mode === 'month'} onClick={() => setMode('month')}>
+              연·월
+            </button>
+            <button type="button" aria-pressed={mode === 'period'} onClick={() => setMode('period')}>
+              기간 설정
+            </button>
+          </div>
         </div>
         {mode === 'month' ? (
           <>
-            <select className="input" value={year} onChange={(e) => setYear(Number(e.target.value))} aria-label="연도">
-              {years.map((y) => (
-                <option key={y} value={y}>
-                  {y}년
-                </option>
-              ))}
-            </select>
-            <select
-              className="input"
-              value={month}
-              onChange={(e) => setMonth(e.target.value ? Number(e.target.value) : '')}
-              aria-label="월"
-            >
-              <option value="">전체 월</option>
-              {Array.from({ length: 12 }, (_, i) => (
-                <option key={i} value={i + 1}>
-                  {i + 1}월
-                </option>
-              ))}
-            </select>
+            <label className="filter-item">
+              <span className="filter-label">연도</span>
+              <select className="input" value={year} onChange={(e) => setYear(Number(e.target.value))}>
+                {years.map((y) => (
+                  <option key={y} value={y}>
+                    {y}년
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="filter-item">
+              <span className="filter-label">월</span>
+              <select className="input" value={month} onChange={(e) => setMonth(e.target.value ? Number(e.target.value) : '')}>
+                <option value="">전체</option>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i} value={i + 1}>
+                    {i + 1}월
+                  </option>
+                ))}
+              </select>
+            </label>
           </>
         ) : (
-          <div className="period">
-            <input className="input" type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} aria-label="시작일" />
-            <span aria-hidden>~</span>
-            <input className="input" type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} aria-label="종료일" />
-          </div>
+          <>
+            <label className="filter-item">
+              <span className="filter-label">시작일</span>
+              <input className="input" type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
+            </label>
+            <label className="filter-item">
+              <span className="filter-label">종료일</span>
+              <input className="input" type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
+            </label>
+          </>
         )}
-      </div>
-      <div className="filter-bar secondary">
-        <input
-          className="input"
-          type="search"
-          placeholder="거래처 검색"
-          value={vendorInput}
-          onChange={(e) => setVendorInput(e.target.value)}
-        />
-        <AccountSelect value={accountId} onChange={setAccountId} emptyLabel="모든 차변계정" />
-        <select className="input" value={kind} onChange={(e) => setKind(e.target.value as Kind)} aria-label="구분">
-          <option value="">경비 + 임차관리비</option>
-          <option value="MANUAL">직접 등록 경비만</option>
-          <option value="SUBSCRIPTION">구독 결제분만</option>
-          <option value="LEASE">임차관리비만</option>
-        </select>
-      </div>
+        <label className="filter-item filter-grow">
+          <span className="filter-label">거래처</span>
+          <input
+            className="input"
+            type="search"
+            placeholder="이름 일부로 검색"
+            value={vendorInput}
+            onChange={(e) => setVendorInput(e.target.value)}
+          />
+        </label>
+        <label className="filter-item">
+          <span className="filter-label">차변계정</span>
+          <AccountSelect value={accountId} onChange={setAccountId} emptyLabel="전체" />
+        </label>
+        <label className="filter-item">
+          <span className="filter-label">구분</span>
+          <select className="input" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
+            <option value="">경비 + 임차관리비</option>
+            <option value="MANUAL">직접 등록 경비</option>
+            <option value="SUBSCRIPTION">구독 결제분</option>
+            <option value="LEASE">임차관리비</option>
+          </select>
+        </label>
+      </section>
 
       {data && (
         <dl className="tally">

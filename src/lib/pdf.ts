@@ -20,8 +20,8 @@ export async function downloadLedgerPdf(ledger: Ledger, opts: { title: string; c
   doc.addFont('Pretendard.ttf', 'Pretendard', 'bold');
   doc.setFont('Pretendard', 'normal');
 
-  const blue: [number, number, number] = [29, 59, 143];
-  doc.setTextColor(...blue);
+  const wine: [number, number, number] = [120, 1, 21];
+  doc.setTextColor(...wine);
   doc.setFontSize(16);
   doc.text(opts.title, 14, 16);
   doc.setFontSize(9);
@@ -67,9 +67,9 @@ export async function downloadLedgerPdf(ledger: Ledger, opts: { title: string; c
       ...(ledger.leaseTotal ? [['', '', '', '임차관리비', '', '', money(ledger.leaseTotal), '', '']] : []),
       ['', '', '', '총 합계', '', '', money(ledger.grandTotal), '', ''],
     ],
-    styles: { font: 'Pretendard', fontSize: 8.5, cellPadding: 1.8, lineColor: [211, 219, 238], lineWidth: 0.1 },
-    headStyles: { fillColor: [238, 242, 251], textColor: blue, fontStyle: 'bold' },
-    footStyles: { fillColor: [238, 242, 251], textColor: [24, 33, 59], fontStyle: 'bold' },
+    styles: { font: 'Pretendard', fontSize: 8.5, cellPadding: 1.8, lineColor: [236, 231, 229], lineWidth: 0.1 },
+    headStyles: { fillColor: [246, 234, 236], textColor: wine, fontStyle: 'bold' },
+    footStyles: { fillColor: [246, 234, 236], textColor: [36, 28, 30], fontStyle: 'bold' },
     columnStyles: {
       0: { cellWidth: 13 },
       1: { cellWidth: 15 },
@@ -83,7 +83,7 @@ export async function downloadLedgerPdf(ledger: Ledger, opts: { title: string; c
       if (data.column.index >= 4 && data.column.index <= 6) data.cell.styles.halign = 'right';
       if (data.section === 'head') return;
       const text = String(data.cell.raw ?? '');
-      if (text.startsWith('-')) data.cell.styles.textColor = [184, 50, 42];
+      if (text.startsWith('-')) data.cell.styles.textColor = [198, 40, 40];
     },
     didDrawPage: () => {
       const page = doc.getNumberOfPages();
