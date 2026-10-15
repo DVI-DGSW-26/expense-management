@@ -25,6 +25,27 @@ function takeTokensFromHash() {
   history.replaceState(null, '', window.location.pathname + window.location.search);
 }
 
+/**
+ * 붙여넣은 텍스트에서 토큰을 꺼낸다.
+ * 토큰 응답 JSON 전체를 붙여넣어도 되고, "Bearer " 접두어나 줄바꿈이 섞여 있어도 된다.
+ */
+export function parseTokenInput(text: string): { access: string; refresh: string | null } {
+  const trimmed = text.trim();
+  if (trimmed.startsWith('{')) {
+    try {
+      const json = JSON.parse(trimmed);
+      const body = json?.data ?? json;
+      const access = body?.accessToken ?? body?.access_token;
+      if (typeof access === 'string') {
+        return { access, refresh: body?.refreshToken ?? body?.refresh_token ?? null };
+      }
+    } catch {
+      /* JSON 이 아니면 토큰 문자열로 취급 */
+    }
+  }
+  return { access: trimmed.replace(/^Bearer\s+/i, '').replace(/\s+/g, ''), refresh: null };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
   const [checking, setChecking] = useState(() => {
@@ -57,10 +78,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [load]);
 
   const signIn = useCallback(
-    async (accessToken: string, refreshToken?: string) => {
-      tokens.set(accessToken.trim().replace(/^Bearer\s+/i, ''), refreshToken?.trim() || null);
-      const user = await authApi.me();
-      setMe(user);
+    async (accessInput: string, refreshInput?: string) => {
+      const parsed = parseTokenInput(accessInput);
+      const refresh = parsed.refresh ?? (refreshInput?.replace(/\s+/g, '') || null);
+      tokens.set(parsed.access, refresh);
+      try {
+        setMe(await authApi.me());
+      } catch (e) {
+        tokens.clear();
+        throw e;
+      }
     },
     [],
   );

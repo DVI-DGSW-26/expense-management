@@ -1,6 +1,24 @@
 import { useState, type FormEvent } from 'react';
-import { ApiError, TOKEN_PAGE_URL } from '../api/client';
-import { useAuth } from './AuthContext';
+import { API_BASE, ApiError, TOKEN_PAGE_URL, tokenExpiry } from '../api/client';
+import { parseTokenInput, useAuth } from './AuthContext';
+
+/** API 서버가 CORS 로 허용하는 이 앱의 주소 */
+const ALLOWED_ORIGIN = 'http://localhost:5173';
+
+function describeLoginError(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 0) {
+      // 브라우저가 CORS 로 막으면 응답 없이 실패한다
+      return window.location.origin !== ALLOWED_ORIGIN && API_BASE.startsWith('https://api.dvi-ind.com')
+        ? `지금 주소(${window.location.origin})는 API 서버가 허용하지 않습니다. ${ALLOWED_ORIGIN} 으로 접속해 주세요.`
+        : `API 서버(${API_BASE})에 연결하지 못했습니다. 네트워크 상태를 확인해 주세요.`;
+    }
+    if (err.status === 401) return '서버가 토큰을 거부했습니다. 만료됐거나 다른 서비스의 토큰입니다. 새 토큰을 받아 다시 붙여넣어 주세요.';
+    if (err.status === 403) return '이 계정에는 경비 서비스 권한이 없습니다. 관리자에게 권한을 요청해 주세요.';
+    return `${err.message} (${err.status})`;
+  }
+  return err instanceof Error ? err.message : '로그인하지 못했습니다.';
+}
 
 export function LoginPage() {
   const { signIn } = useAuth();
@@ -15,18 +33,22 @@ export function LoginPage() {
       setError('토큰을 붙여넣어 주세요.');
       return;
     }
+    const { access: token } = parseTokenInput(access);
+    if (token.split('.').length !== 3) {
+      setError('앱 토큰 형식이 아닙니다. 로그인 페이지에 표시된 accessToken(eyJ로 시작하는 긴 문자열)을 붙여넣어 주세요.');
+      return;
+    }
+    const exp = tokenExpiry(token);
+    if (exp && exp * 1000 < Date.now()) {
+      setError('만료된 토큰입니다 (수명 30분). 로그인 페이지를 새로고침해 새 토큰을 받아 주세요.');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
       await signIn(access, refresh);
     } catch (err) {
-      setError(
-        err instanceof ApiError && err.status === 401
-          ? '토큰이 만료됐거나 올바르지 않습니다. 새 토큰을 받아 다시 붙여넣어 주세요.'
-          : err instanceof Error
-            ? err.message
-            : '로그인하지 못했습니다.',
-      );
+      setError(describeLoginError(err));
     } finally {
       setBusy(false);
     }
