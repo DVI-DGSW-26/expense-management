@@ -180,10 +180,11 @@ a {
   font-weight: 600;
 }
 
+/* 윈도우·노트북 화면에서 본문이 화면 폭을 꽉 채운다 */
 .content {
-  padding: 36px 48px 80px;
-  max-width: 1400px;
+  padding: 36px clamp(24px, 3vw, 56px) 80px;
   width: 100%;
+  min-width: 0;
 }
 
 .boot {
@@ -946,7 +947,7 @@ textarea.input {
   gap: 2px;
 }
 .chart-seg {
-  width: min(28px, 70%);
+  width: min(56px, 60%);
   min-height: 2px;
 }
 .chart-stack .chart-seg:last-child {
@@ -1071,13 +1072,12 @@ textarea.input {
 .account-add,
 .account-row {
   display: grid;
-  grid-template-columns: 76px minmax(0, 1fr) auto auto;
+  grid-template-columns: 96px minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: center;
 }
 .account-add {
-  grid-template-columns: minmax(0, 1fr) 76px auto;
-  max-width: 640px;
+  grid-template-columns: minmax(0, 1fr) 96px auto;
   margin-bottom: 20px;
 }
 .order-input {
@@ -1087,7 +1087,6 @@ textarea.input {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-width: 640px;
   border-top: 3px double var(--form);
 }
 .account-list li {
