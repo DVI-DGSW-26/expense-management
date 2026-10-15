@@ -64,7 +64,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font);
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   word-break: keep-all;
@@ -109,7 +109,7 @@ a {
 }
 .mono {
   font-family: ui-monospace, Consolas, monospace;
-  font-size: 13px;
+  font-size: 15px;
 }
 .nowrap {
   white-space: nowrap;
@@ -119,7 +119,7 @@ a {
 
 .shell {
   display: grid;
-  grid-template-columns: 208px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -136,7 +136,7 @@ a {
 
 .brand {
   padding: 0 24px 24px;
-  font-size: 19px;
+  font-size: 22px;
   font-weight: 750;
   letter-spacing: -0.02em;
   color: var(--form);
@@ -148,7 +148,8 @@ a {
 }
 
 .nav-link {
-  padding: 9px 24px;
+  padding: 12px 24px;
+  font-size: 18px;
   color: var(--ink-2);
   text-decoration: none;
   font-weight: 500;
@@ -173,7 +174,7 @@ a {
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  font-size: 14px;
+  font-size: 16px;
 }
 .who-name {
   font-weight: 600;
@@ -181,7 +182,7 @@ a {
 
 .content {
   padding: 36px 48px 80px;
-  max-width: 1180px;
+  max-width: 1400px;
   width: 100%;
 }
 
@@ -216,6 +217,7 @@ a {
   }
   .nav-link {
     padding: 14px 10px 11px;
+    font-size: 16px;
     border-left: 0;
     border-bottom: 3px solid transparent;
     white-space: nowrap;
@@ -251,7 +253,7 @@ a {
   margin-bottom: 20px;
 }
 .page-head h1 {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 750;
   letter-spacing: -0.03em;
 }
@@ -267,13 +269,13 @@ a {
 }
 
 .section-title {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
   margin-bottom: 10px;
 }
 .section-note {
   margin: -4px 0 14px;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--muted);
 }
 
@@ -284,7 +286,7 @@ a {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 38px;
+  min-height: 46px;
   padding: 0 16px;
   border: 1px solid var(--rule);
   border-radius: var(--radius);
@@ -311,9 +313,9 @@ a {
   filter: brightness(1.1);
 }
 .btn-small {
-  min-height: 30px;
+  min-height: 38px;
   padding: 0 10px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .btn-block {
   width: 100%;
@@ -327,14 +329,14 @@ a {
 }
 
 .icon-btn {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   display: inline-grid;
   place-items: center;
   border: 0;
   border-radius: var(--radius);
   background: none;
-  font-size: 20px;
+  font-size: 24px;
   line-height: 1;
   color: var(--ink-2);
   cursor: pointer;
@@ -361,8 +363,8 @@ a {
 
 .input {
   width: 100%;
-  min-height: 38px;
-  padding: 7px 10px;
+  min-height: 46px;
+  padding: 10px 12px;
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   background: var(--sheet);
@@ -392,7 +394,7 @@ textarea.input {
   top: 50%;
   transform: translateY(-50%);
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
   pointer-events: none;
 }
 
@@ -403,12 +405,12 @@ textarea.input {
   min-width: 0;
 }
 .field-label {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--form);
 }
 .field-hint {
-  font-size: 12.5px;
+  font-size: 14.5px;
   color: var(--muted);
 }
 
@@ -433,7 +435,7 @@ textarea.input {
 .form-error {
   margin: 0;
   color: var(--stamp);
-  font-size: 14px;
+  font-size: 16px;
 }
 .stack {
   display: flex;
@@ -446,12 +448,12 @@ textarea.input {
   align-items: center;
 }
 .sum-readout {
-  min-height: 38px;
+  min-height: 46px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   font-weight: 700;
-  font-size: 17px;
+  font-size: 19px;
   border-bottom: 3px double var(--form);
 }
 .note {
@@ -459,7 +461,7 @@ textarea.input {
   padding: 10px 12px;
   border-left: 3px solid var(--form);
   background: var(--form-soft);
-  font-size: 13.5px;
+  font-size: 15.5px;
   color: var(--ink-2);
 }
 
@@ -522,20 +524,20 @@ textarea.input {
   border-right: 0;
 }
 .tally dt {
-  font-size: 12.5px;
+  font-size: 14.5px;
   color: var(--form);
   font-weight: 600;
 }
 .tally dd {
   margin: 0;
-  font-size: 17px;
+  font-size: 19px;
   text-align: right;
 }
 .tally-total {
   background: var(--form-soft);
 }
 .tally-total dd {
-  font-size: 19px;
+  font-size: 22px;
 }
 
 /* ── 장부 표 ─────────────────────────────────────── */
@@ -553,12 +555,12 @@ textarea.input {
 }
 .ledger th,
 .ledger td {
-  padding: 10px 12px;
+  padding: 14px 16px;
   text-align: left;
   vertical-align: middle;
 }
 .ledger thead th {
-  font-size: 12.5px;
+  font-size: 14.5px;
   font-weight: 650;
   color: var(--form);
   background: var(--form-soft);
@@ -591,8 +593,8 @@ textarea.input {
 }
 .ledger.compact th,
 .ledger.compact td {
-  padding: 7px 10px;
-  font-size: 14px;
+  padding: 10px 14px;
+  font-size: 16px;
 }
 
 .ledger tr.clickable {
@@ -640,7 +642,7 @@ textarea.input {
 }
 
 .sub-line {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--muted);
 }
 .row-actions {
@@ -654,14 +656,14 @@ textarea.input {
   padding: 1px 6px;
   border: 1px solid var(--series-sub);
   border-radius: 3px;
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--series-sub);
   vertical-align: 1px;
 }
 
 .status {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
 }
 .status::before {
@@ -718,7 +720,7 @@ textarea.input {
   border-radius: var(--radius);
   background: var(--ink);
   color: var(--paper);
-  font-size: 14px;
+  font-size: 16px;
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
   animation: toast-in 160ms ease-out;
 }
@@ -736,7 +738,7 @@ textarea.input {
 /* ── 대화상자 ────────────────────────────────────── */
 
 .modal {
-  width: min(560px, calc(100vw - 24px));
+  width: min(640px, calc(100vw - 24px));
   max-height: calc(100vh - 48px);
   padding: 0;
   border: 1px solid var(--form);
@@ -747,7 +749,7 @@ textarea.input {
   box-shadow: 0 20px 50px rgb(10 20 50 / 0.25);
 }
 .modal-wide {
-  width: min(900px, calc(100vw - 24px));
+  width: min(1040px, calc(100vw - 24px));
 }
 .modal::backdrop {
   background: rgb(15 22 45 / 0.42);
@@ -769,7 +771,7 @@ textarea.input {
   border-bottom: 3px double var(--form);
 }
 .modal-head h2 {
-  font-size: 18px;
+  font-size: 21px;
   font-weight: 700;
 }
 .modal-body {
@@ -799,7 +801,7 @@ textarea.input {
 }
 .audit {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 14.5px;
   color: var(--muted);
 }
 
@@ -812,7 +814,7 @@ textarea.input {
   margin-bottom: 8px;
 }
 .attachments-head h3 {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
 }
 .count {
@@ -821,7 +823,7 @@ textarea.input {
 }
 .attachments p {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 15.5px;
 }
 .file-list {
   list-style: none;
@@ -835,7 +837,7 @@ textarea.input {
   gap: 8px;
   padding: 4px 0;
   border-bottom: 1px solid var(--rule-soft);
-  font-size: 14px;
+  font-size: 16px;
 }
 .file-list li > :first-child {
   overflow: hidden;
@@ -843,7 +845,7 @@ textarea.input {
   white-space: nowrap;
 }
 .file-list .muted {
-  font-size: 12.5px;
+  font-size: 14.5px;
 }
 .file-picker .file-list {
   margin-top: 6px;
@@ -863,7 +865,7 @@ textarea.input {
 }
 .year-total-value {
   margin: 2px 0 12px;
-  font-size: clamp(36px, 6vw, 56px);
+  font-size: clamp(40px, 6vw, 60px);
   font-weight: 750;
   letter-spacing: -0.03em;
   line-height: 1.1;
@@ -881,7 +883,7 @@ textarea.input {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--ink-2);
 }
 .legend li {
@@ -909,7 +911,7 @@ textarea.input {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 6px;
-  height: 240px;
+  height: 300px;
   padding: 0 0 24px 44px;
 }
 .chart-grid {
@@ -923,7 +925,7 @@ textarea.input {
   left: 0;
   right: 0;
   border-top: 1px dashed var(--rule);
-  font-size: 11.5px;
+  font-size: 14px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   line-height: 0;
@@ -956,7 +958,7 @@ textarea.input {
   left: 0;
   right: 0;
   text-align: center;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -973,13 +975,13 @@ textarea.input {
   display: none;
   flex-direction: column;
   gap: 3px;
-  min-width: 190px;
+  min-width: 230px;
   padding: 10px 12px;
   border: 1px solid var(--form);
   border-radius: var(--radius);
   background: var(--sheet);
   box-shadow: 0 8px 24px rgb(10 20 50 / 0.16);
-  font-size: 13px;
+  font-size: 15px;
   pointer-events: none;
 }
 .chart-col:nth-child(-n + 4) .chart-tip {
@@ -1049,7 +1051,7 @@ textarea.input {
   text-decoration: underline;
 }
 .account-bars .muted {
-  font-size: 13px;
+  font-size: 15px;
 }
 .account-bar-track {
   grid-column: 1 / -1;
@@ -1102,7 +1104,7 @@ textarea.input {
   padding: 24px 16px;
 }
 .login-sheet {
-  width: min(460px, 100%);
+  width: min(520px, 100%);
   padding: 32px 32px 28px;
   border: 1px solid var(--form);
   border-top: 6px double var(--form);
@@ -1110,7 +1112,7 @@ textarea.input {
   background: var(--sheet);
 }
 .login-title {
-  font-size: 30px;
+  font-size: 34px;
   font-weight: 750;
   letter-spacing: -0.03em;
   color: var(--form);
@@ -1124,7 +1126,7 @@ textarea.input {
 }
 .login-more summary {
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--ink-2);
   margin-bottom: 10px;
 }
@@ -1165,7 +1167,7 @@ textarea.input {
   background: var(--sheet);
 }
 .segmented button {
-  min-height: 32px;
+  min-height: 40px;
   padding: 0 14px;
   border: 0;
   border-radius: 4px;
@@ -1208,7 +1210,7 @@ textarea.input {
   color: var(--form);
 }
 .attach-add {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--muted);
 }
 tr.clickable:hover .attach-add {
@@ -1242,13 +1244,14 @@ tr.clickable:hover .attach-add {
 .ledger tr.lease-part td {
   border-top: 1px dashed var(--rule);
   background: color-mix(in srgb, var(--series-lease) 3%, var(--sheet));
-  font-size: 14px;
+  font-size: 16px;
 }
 .ledger tr.lease-part td:nth-child(2) {
   padding-left: 32px;
 }
 .part-detail {
   display: block;
-  font-size: 12.5px;
+  white-space: nowrap;
+  font-size: 14.5px;
   color: var(--muted);
 }
