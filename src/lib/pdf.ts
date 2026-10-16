@@ -62,11 +62,14 @@ export async function downloadLedgerPdf(ledger: Ledger, opts: { title: string; c
     startY: 27,
     head: [['연도', '일자', '거래처', '품명', '공급가액', '세액', '합계', '차변계정', '첨부']],
     body,
-    foot: [
-      ['', '', '', `경비 ${ledger.expenseCount}건`, money(ledger.supply), money(ledger.tax), money(ledger.expenseTotal), '', ''],
-      ...(ledger.leaseTotal ? [['', '', '', '임차관리비', '', '', money(ledger.leaseTotal), '', '']] : []),
-      ['', '', '', '총 합계', '', '', money(ledger.grandTotal), '', ''],
-    ],
+    // 임차관리비가 없으면 합계 한 줄, 있으면 경비 / 임차관리비 / 합계
+    foot: ledger.leaseTotal
+      ? [
+          ['', '', '', `경비 ${ledger.expenseCount}건`, money(ledger.supply), money(ledger.tax), money(ledger.expenseTotal), '', ''],
+          ['', '', '', '임차관리비', '', '', money(ledger.leaseTotal), '', ''],
+          ['', '', '', '합계', '', '', money(ledger.grandTotal), '', ''],
+        ]
+      : [['', '', '', `합계 (${ledger.expenseCount}건)`, money(ledger.supply), money(ledger.tax), money(ledger.grandTotal), '', '']],
     styles: { font: 'Pretendard', fontSize: 8.5, cellPadding: 1.8, lineColor: [236, 231, 229], lineWidth: 0.1 },
     headStyles: { fillColor: [246, 234, 236], textColor: wine, fontStyle: 'bold' },
     footStyles: { fillColor: [246, 234, 236], textColor: [36, 28, 30], fontStyle: 'bold' },

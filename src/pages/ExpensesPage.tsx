@@ -250,20 +250,17 @@ export function ExpensesPage() {
               <Amount value={data.tax} />
             </dd>
           </div>
-          <div>
-            <dt>경비 합계</dt>
-            <dd>
-              <Amount value={data.expenseTotal} />
-            </dd>
-          </div>
-          <div>
-            <dt>임차관리비</dt>
-            <dd>
-              <Amount value={data.leaseTotal} />
-            </dd>
-          </div>
+          {/* 임차관리비가 있는 기간에만 따로 보여 주고 합계에 더한다 */}
+          {data.leaseTotal !== 0 && (
+            <div>
+              <dt>임차관리비</dt>
+              <dd>
+                <Amount value={data.leaseTotal} />
+              </dd>
+            </div>
+          )}
           <div className="tally-total">
-            <dt>총 합계</dt>
+            <dt>합계{data.leaseTotal !== 0 && ' (임차관리비 포함)'}</dt>
             <dd>
               <Amount value={data.grandTotal} strong />
             </dd>
