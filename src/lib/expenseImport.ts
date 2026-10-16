@@ -17,6 +17,8 @@ export interface ImportRow {
   problem?: string;
   /** 합계가 공급가액 + 세액과 다르면 안내만 한다 (그대로 저장) */
   totalMismatch?: boolean;
+  /** 이미 있는 같은 경비 (건너뛸 때 누가 언제 등록했는지 보여 준다) */
+  existing?: { id: number; createdBy?: string; createdAt?: string; inFile?: number };
 }
 
 export interface ImportPlan {
@@ -26,6 +28,8 @@ export interface ImportPlan {
   newAccounts: string[];
   /** 엑셀 계정명 → 기존 계정 (이름이 조금 달라 맞춘 경우 안내용) */
   matchedAccounts: { from: string; to: DebitAccount }[];
+  /** 엑셀에 있는 경비의 첫 일자 ~ 마지막 일자 */
+  range: { from: string; to: string } | null;
 }
 
 const HEADERS = {
@@ -136,15 +140,22 @@ export async function planImport(sheets: Sheet[], accounts: DebitAccount[]): Pro
   // 이미 등록된 경비와 비교 (해당 연도들만 조회)
   const years = [...new Set(rows.filter((r) => r.status === 'new').map((r) => Number(r.expenseDate.slice(0, 4))))];
   const existing: Expense[] = (await Promise.all(years.map((year) => expenseApi.list({ year })))).flatMap((l) => l.items);
-  const seen = new Set(existing.map((e) => dupKey(e.expenseDate, e.vendor, e.itemName, e.totalAmount)));
+  const seen = new Map<string, ImportRow['existing']>(
+    existing.map((e) => [dupKey(e.expenseDate, e.vendor, e.itemName, e.totalAmount), { id: e.id, createdBy: e.createdBy, createdAt: e.createdAt }]),
+  );
   for (const r of rows) {
     if (r.status !== 'new') continue;
     const key = dupKey(r.expenseDate, r.vendor, r.itemName, r.totalAmount);
-    if (seen.has(key)) {
+    const found = seen.get(key);
+    if (found) {
       r.status = 'duplicate';
-      r.problem = '같은 일자·거래처·품명·합계의 경비가 이미 있음';
+      r.existing = found;
+      r.problem = found.inFile
+        ? `엑셀 ${found.inFile}행과 같은 내용`
+        : `이미 등록됨${found.createdBy ? ` (${found.createdBy}${found.createdAt ? `, ${found.createdAt.slice(0, 10)}` : ''})` : ''}`;
+      continue;
     }
-    seen.add(key); // 엑셀 안에서 같은 줄이 두 번 있어도 한 번만
+    seen.set(key, { id: 0, inFile: r.line }); // 엑셀 안에서 같은 줄이 두 번 있어도 한 번만
   }
 
   // 계정: 이름이 같으면 그대로, "(판)" 같은 접두어만 다르면 기존 계정에 맞추고, 없으면 새로 만든다
@@ -157,7 +168,10 @@ export async function planImport(sheets: Sheet[], accounts: DebitAccount[]): Pro
     else newAccounts.push(name);
   }
 
-  return { sheetName: sheet.name, rows, newAccounts, matchedAccounts };
+  const dates = rows.map((r) => r.expenseDate).filter(Boolean).sort();
+  const range = dates.length ? { from: dates[0], to: dates[dates.length - 1] } : null;
+
+  return { sheetName: sheet.name, rows, newAccounts, matchedAccounts, range };
 }
 
 /** 계획대로 계정을 만들고 경비를 한 건씩 등록한다. 진행 상황을 onProgress 로 알린다. */

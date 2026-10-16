@@ -12,7 +12,16 @@ const STATUS_LABEL: Record<ImportRow['status'], string> = {
 };
 
 /** 엑셀의 경비 목록을 한 번에 등록한다 */
-export function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+export function ImportModal({
+  onClose,
+  onDone,
+  onShowRange,
+}: {
+  onClose: () => void;
+  onDone: () => void;
+  /** 경비 화면을 엑셀 기간으로 바꿔 보여 준다 */
+  onShowRange: (from: string, to: string) => void;
+}) {
   const { accounts, reload: reloadAccounts } = useAccounts();
   const toast = useToast();
   const [fileName, setFileName] = useState('');
@@ -64,6 +73,19 @@ export function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: 
     : null;
   const busy = reading || progress !== null;
 
+  const showRange = plan?.range && (
+    <button
+      type="button"
+      className="btn btn-soft"
+      onClick={() => {
+        onShowRange(plan.range!.from, plan.range!.to);
+        onClose();
+      }}
+    >
+      가져온 기간 보기 ({plan.range.from.replaceAll('-', '.')} ~ {plan.range.to.replaceAll('-', '.')})
+    </button>
+  );
+
   return (
     <Modal title="엑셀로 경비 가져오기" onClose={busy ? () => {} : onClose} wide>
       <div className="stack">
@@ -94,6 +116,16 @@ export function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: 
               {counts.error > 0 && <span className="pill pill-error">오류 {counts.error}건</span>}
               <span className="muted">'{plan.sheetName}' 시트</span>
             </div>
+
+            {counts.new === 0 && counts.duplicate > 0 && (
+              <div className="note">
+                <p>
+                  이 엑셀의 경비는 모두 이미 등록되어 있습니다. 경비 화면은 처음에 이번 달만 보여 주므로, 아래 <b>가져온 기간 보기</b>를
+                  누르면 등록된 내역을 바로 볼 수 있습니다.
+                </p>
+                <div className="note-actions">{showRange}</div>
+              </div>
+            )}
 
             {(plan.newAccounts.length > 0 || plan.matchedAccounts.length > 0) && (
               <div className="note">
@@ -145,7 +177,9 @@ export function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: 
                       <td className="nowrap">{r.accountName}</td>
                       <td className="nowrap" title={r.problem}>
                         <span className={`pill pill-${r.status}`}>{STATUS_LABEL[r.status]}</span>
-                        {r.problem && r.status === 'error' && <div className="row-problem">{r.problem}</div>}
+                        {r.problem && r.status !== 'new' && (
+                          <div className={r.status === 'error' ? 'row-problem' : 'row-note'}>{r.problem}</div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -163,8 +197,9 @@ export function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: 
             )}
 
             <div className="form-actions">
+              {!busy && counts.new > 0 && showRange}
               <button className="btn" onClick={onClose} disabled={busy}>
-                취소
+                {counts.new === 0 ? '닫기' : '취소'}
               </button>
               <button className="btn btn-primary" onClick={start} disabled={busy || counts.new === 0}>
                 {counts.new === 0 ? '등록할 경비 없음' : `${counts.new}건 등록`}
@@ -189,6 +224,7 @@ export function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: 
               </ul>
             )}
             <div className="form-actions">
+              {showRange}
               <button className="btn btn-primary" onClick={onClose}>
                 닫기
               </button>

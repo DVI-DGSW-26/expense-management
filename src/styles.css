@@ -1651,5 +1651,26 @@ tr.clickable:hover .attach-add {
 }
 .import-preview td:nth-child(3),
 .import-preview td:nth-child(4) {
-  min-width: 180px;
+  min-width: 110px;
+}
+.import-preview td:last-child {
+  min-width: 190px;
+}
+.import-preview .ledger td,
+.import-preview .ledger th {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.note-actions {
+  margin-top: 10px;
+}
+
+.row-note {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--muted);
+  white-space: normal;
+}
+.form-actions .btn-soft:first-child {
+  margin-right: auto;
 }

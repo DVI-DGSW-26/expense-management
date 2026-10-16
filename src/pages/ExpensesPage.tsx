@@ -327,7 +327,18 @@ export function ExpensesPage() {
       {editing !== null && (
         <ExpenseModal id={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={ledger.reload} />
       )}
-      {importing && <ImportModal onClose={() => setImporting(false)} onDone={ledger.reload} />}
+      {importing && (
+        <ImportModal
+          onClose={() => setImporting(false)}
+          onDone={ledger.reload}
+          onShowRange={(f, t) => {
+            resetFilters();
+            setMode('period');
+            setFrom(f);
+            setTo(t);
+          }}
+        />
+      )}
       {leaseEditing && (
         <LeaseModal target={leaseEditing} onClose={() => setLeaseEditing(null)} onSaved={ledger.reload} />
       )}
