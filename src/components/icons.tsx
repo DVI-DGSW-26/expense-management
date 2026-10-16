@@ -98,3 +98,10 @@ export const ResetIcon = (p: IconProps) => (
     <path d="M4 4v4h4" />
   </Svg>
 );
+
+/** 위로 화살표 — 엑셀 가져오기 */
+export const UploadIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 16V5M7 10l5-5 5 5M5 20h14" />
+  </Svg>
+);

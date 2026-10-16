@@ -3,7 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { expenseApi } from '../api/endpoints';
 import type { Expense, ExpenseFields } from '../api/types';
 import { AccountSelect, useAccounts } from '../components/accounts';
-import { DownloadIcon, PlusIcon, ResetIcon } from '../components/icons';
+import { DownloadIcon, PlusIcon, ResetIcon, UploadIcon } from '../components/icons';
+import { ImportModal } from '../components/ImportModal';
 import { Attachments, FilePicker } from '../components/Attachments';
 import { Amount, Field, LoadState, Modal, MoneyInput, RequiredNote, moneyText, useAction, useAsync } from '../components/ui';
 import { money, parseMoney, thisYear, todayIso } from '../lib/format';
@@ -48,6 +49,7 @@ export function ExpensesPage() {
   const [leaseEditing, setLeaseEditing] = useState<LeaseTarget | null>(null);
   const [openLease, setOpenLease] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const run = useAction();
   const { accounts } = useAccounts();
 
@@ -129,6 +131,10 @@ export function ExpensesPage() {
       <header className="page-head">
         <h1>경비</h1>
         <div className="head-actions">
+          <button className="btn btn-soft" onClick={() => setImporting(true)}>
+            <UploadIcon size={18} />
+            엑셀 가져오기
+          </button>
           <button className="btn btn-soft" onClick={exportPdf} disabled={!data || data.rows.length === 0 || exporting}>
             <DownloadIcon size={18} />
             {exporting ? 'PDF 만드는 중…' : 'PDF 다운로드'}
@@ -321,6 +327,7 @@ export function ExpensesPage() {
       {editing !== null && (
         <ExpenseModal id={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={ledger.reload} />
       )}
+      {importing && <ImportModal onClose={() => setImporting(false)} onDone={ledger.reload} />}
       {leaseEditing && (
         <LeaseModal target={leaseEditing} onClose={() => setLeaseEditing(null)} onSaved={ledger.reload} />
       )}
