@@ -7,7 +7,7 @@ export type Kind = '' | ExpenseSource | 'LEASE';
 
 /** 조회 범위. 연·월로 고르거나 시작일~종료일 기간으로 고른다. */
 export type Range =
-  | { mode: 'month'; year: number; month: number | null }
+  | { mode: 'month'; year: number | null; month: number | null } // year null = 전체 연도
   | { mode: 'period'; from: string; to: string };
 
 export interface LedgerFilter {
@@ -42,10 +42,23 @@ export interface Ledger {
 /** 기간 조회는 해마다 API 를 부르므로 범위를 제한한다 */
 export const MAX_PERIOD_YEARS = 5;
 
+/**
+ * '전체'로 조회할 연도들 (연도 선택 목록과 같다).
+ * API 는 한 번에 한 해씩만 조회되므로 이 해들을 모두 불러 합친다.
+ */
+export function selectableYears(): number[] {
+  const y = new Date().getFullYear();
+  return Array.from({ length: 6 }, (_, i) => y - 4 + i);
+}
+
 const pad = (n: number) => String(n).padStart(2, '0');
 
 export function rangeBounds(r: Range): { from: string; to: string } {
   if (r.mode === 'period') return { from: r.from, to: r.to };
+  if (r.year === null) {
+    const ys = selectableYears();
+    return { from: `${ys[0]}-01-01`, to: `${ys[ys.length - 1]}-12-31` };
+  }
   if (r.month) {
     const last = new Date(r.year, r.month, 0).getDate();
     return { from: `${r.year}-${pad(r.month)}-01`, to: `${r.year}-${pad(r.month)}-${pad(last)}` };
@@ -54,7 +67,10 @@ export function rangeBounds(r: Range): { from: string; to: string } {
 }
 
 export function rangeLabel(r: Range): string {
-  if (r.mode === 'month') return r.month ? `${r.year}년 ${r.month}월` : `${r.year}년`;
+  if (r.mode === 'month') {
+    if (r.year === null) return r.month ? `전체 연도 ${r.month}월` : '전체 기간';
+    return r.month ? `${r.year}년 ${r.month}월` : `${r.year}년`;
+  }
   return `${r.from.replaceAll('-', '.')} ~ ${r.to.replaceAll('-', '.')}`;
 }
 
@@ -78,7 +94,9 @@ export async function loadLedger(f: LedgerFilter): Promise<Ledger> {
   const fromYear = Number(from.slice(0, 4));
   const toYear = Number(to.slice(0, 4));
   if (to < from) throw new Error('종료일이 시작일보다 빠릅니다.');
-  if (toYear - fromYear + 1 > MAX_PERIOD_YEARS) throw new Error(`기간은 최대 ${MAX_PERIOD_YEARS}년까지 조회할 수 있습니다.`);
+  const allYears = f.range.mode === 'month' && f.range.year === null;
+  if (!allYears && toYear - fromYear + 1 > MAX_PERIOD_YEARS)
+    throw new Error(`기간은 최대 ${MAX_PERIOD_YEARS}년까지 조회할 수 있습니다.`);
   const years = Array.from({ length: toYear - fromYear + 1 }, (_, i) => fromYear + i);
   const month = f.range.mode === 'month' ? f.range.month ?? undefined : undefined;
 
@@ -108,7 +126,9 @@ export async function loadLedger(f: LedgerFilter): Promise<Ledger> {
   const toYm = to.slice(0, 7);
   const leases = leaseYears
     .flatMap((y) => y.months.map((m, i) => toLeaseRow(m, y.year, i)))
-    .filter((l): l is LeaseRow => !!l && l.yearMonth >= fromYm && l.yearMonth <= toYm);
+    .filter((l): l is LeaseRow => !!l && l.yearMonth >= fromYm && l.yearMonth <= toYm)
+    // 전체 연도 + 특정 월이면 그 달만
+    .filter((l) => !month || Number(l.yearMonth.slice(5, 7)) === month);
 
   const rows: Row[] = [
     ...expenses.map((e) => ({ type: 'expense' as const, date: e.expenseDate, e })),

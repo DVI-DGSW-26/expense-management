@@ -1674,3 +1674,20 @@ tr.clickable:hover .attach-add {
 .form-actions .btn-soft:first-child {
   margin-right: auto;
 }
+
+/* 조회 조건 한 줄 고정: 조회 방식 | 입력 5칸(같은 폭) | 초기화. 옵션 이름이 길어도 줄이 바뀌지 않는다 */
+@media (min-width: 761px) {
+  .filter-card {
+    display: grid;
+    /* 조회 방식 | 연도(시작일) | 월(종료일) | 거래처 | 차변계정 | 구분 | 초기화 */
+    grid-template-columns: auto minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(190px, 1.3fr) auto;
+  }
+  .filter-item,
+  .filter-kind,
+  .filter-grow {
+    min-width: 0;
+  }
+  .filter-item .input {
+    text-overflow: ellipsis;
+  }
+}

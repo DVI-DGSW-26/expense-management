@@ -15,6 +15,7 @@ import {
   loadLedger,
   rangeBounds,
   rangeLabel,
+  selectableYears,
   sortRows,
   type Kind,
   type LeaseRow,
@@ -34,10 +35,10 @@ const KIND_LABEL: Record<Kind, string> = {
 export function ExpensesPage() {
   // 집계 화면에서 넘어오면 ?year=…&account=… 로 연간 조회
   const [params, setParams] = useSearchParams();
-  const now = new Date();
   const [mode, setMode] = useState<'month' | 'period'>('month');
-  const [year, setYear] = useState(Number(params.get('year')) || thisYear());
-  const [month, setMonth] = useState<number | ''>(params.has('year') ? '' : now.getMonth() + 1);
+  // 기본은 전체 연도·전체 월. 집계 화면에서 넘어오면 그 연도로 거른다.
+  const [year, setYear] = useState<number | ''>(Number(params.get('year')) || '');
+  const [month, setMonth] = useState<number | ''>('');
   const [from, setFrom] = useState(`${thisYear()}-01-01`);
   const [to, setTo] = useState(todayIso());
   const [vendorInput, setVendorInput] = useState('');
@@ -60,11 +61,10 @@ export function ExpensesPage() {
   }, [vendorInput]);
 
   // 처음 화면의 조건: 이번 달, 거래처·계정·구분 없음
-  const defaultMonth = now.getMonth() + 1;
   const filtered =
     mode !== 'month' ||
-    year !== thisYear() ||
-    month !== defaultMonth ||
+    year !== '' ||
+    month !== '' ||
     !!vendorInput ||
     !!accountId ||
     kind !== '' ||
@@ -73,8 +73,8 @@ export function ExpensesPage() {
 
   function resetFilters() {
     setMode('month');
-    setYear(thisYear());
-    setMonth(defaultMonth);
+    setYear('');
+    setMonth('');
     setFrom(`${thisYear()}-01-01`);
     setTo(todayIso());
     setVendorInput('');
@@ -85,7 +85,7 @@ export function ExpensesPage() {
     if (params.toString()) setParams({}, { replace: true });
   }
 
-  const range: Range = mode === 'month' ? { mode, year, month: month || null } : { mode, from, to };
+  const range: Range = mode === 'month' ? { mode, year: year || null, month: month || null } : { mode, from, to };
   const ledger = useAsync(
     () => loadLedger({ range, vendor, accountId: accountId ? Number(accountId) : null, kind }),
     [mode, year, month, from, to, vendor, accountId, kind],
@@ -100,7 +100,7 @@ export function ExpensesPage() {
     );
   }
 
-  const years = Array.from({ length: 6 }, (_, i) => thisYear() - 4 + i);
+  const years = selectableYears();
 
   async function exportPdf() {
     if (!data) return;
@@ -162,7 +162,8 @@ export function ExpensesPage() {
           <>
             <label className="filter-item">
               <span className="filter-label">연도</span>
-              <select className="input" value={year} onChange={(e) => setYear(Number(e.target.value))}>
+              <select className="input" value={year} onChange={(e) => setYear(e.target.value ? Number(e.target.value) : '')}>
+                <option value="">전체</option>
                 {years.map((y) => (
                   <option key={y} value={y}>
                     {y}년
@@ -211,7 +212,7 @@ export function ExpensesPage() {
         <label className="filter-item filter-kind">
           <span className="filter-label">구분</span>
           <select className="input" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
-            <option value="">경비 + 임차관리비</option>
+            <option value="">전체</option>
             <option value="MANUAL">직접 등록 경비</option>
             <option value="SUBSCRIPTION">구독 결제분</option>
             <option value="LEASE">임차관리비</option>
