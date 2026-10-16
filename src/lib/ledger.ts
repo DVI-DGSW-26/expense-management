@@ -130,3 +130,81 @@ export async function loadLedger(f: LedgerFilter): Promise<Ledger> {
     grandTotal: expenseTotal + leaseTotal,
   };
 }
+
+// ── 정렬 ─────────────────────────────────────────────
+
+export type SortKey = 'date' | 'vendor' | 'item' | 'supply' | 'tax' | 'total' | 'account' | 'attach';
+export type SortDir = 'asc' | 'desc';
+export interface Sort {
+  key: SortKey;
+  dir: SortDir;
+}
+
+export const DEFAULT_SORT: Sort = { key: 'date', dir: 'desc' };
+
+export const SORT_LABEL: Record<SortKey, string> = {
+  date: '일자',
+  vendor: '거래처',
+  item: '품명',
+  supply: '공급가액',
+  tax: '세액',
+  total: '합계',
+  account: '차변계정',
+  attach: '첨부파일',
+};
+
+/** 처음 누를 때의 방향: 글자는 가나다순, 날짜·금액은 큰 것부터 */
+export const FIRST_DIR: Record<SortKey, SortDir> = {
+  date: 'desc',
+  vendor: 'asc',
+  item: 'asc',
+  supply: 'desc',
+  tax: 'desc',
+  total: 'desc',
+  account: 'asc',
+  attach: 'desc',
+};
+
+function sortValue(r: Row, key: SortKey): string | number | null {
+  if (r.type === 'lease') {
+    if (key === 'date') return r.date;
+    if (key === 'item') return '임차관리비';
+    if (key === 'total') return r.l.total;
+    return null; // 임차관리비에는 거래처·공급가액·세액·계정·첨부 수가 없다
+  }
+  const e = r.e;
+  switch (key) {
+    case 'date':
+      return r.date;
+    case 'vendor':
+      return e.vendor;
+    case 'item':
+      return e.itemName;
+    case 'supply':
+      return e.supplyAmount;
+    case 'tax':
+      return e.taxAmount;
+    case 'total':
+      return e.totalAmount;
+    case 'account':
+      return e.debitAccountName;
+    case 'attach':
+      return e.attachmentCount;
+  }
+}
+
+/** 값이 없는 줄은 방향과 상관없이 맨 아래, 값이 같으면 최신 일자부터 */
+export function sortRows(rows: Row[], sort: Sort): Row[] {
+  const sign = sort.dir === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const va = sortValue(a, sort.key);
+    const vb = sortValue(b, sort.key);
+    if (va === null && vb !== null) return 1;
+    if (vb === null && va !== null) return -1;
+    if (va !== null && vb !== null && va !== vb) {
+      const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb), 'ko');
+      if (cmp !== 0) return cmp * sign;
+    }
+    return a.date === b.date ? 0 : a.date < b.date ? 1 : -1;
+  });
+}

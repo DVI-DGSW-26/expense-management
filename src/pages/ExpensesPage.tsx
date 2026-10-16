@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { expenseApi } from '../api/endpoints';
 import type { Expense, ExpenseFields } from '../api/types';
@@ -7,7 +7,20 @@ import { DownloadIcon, PlusIcon, ResetIcon } from '../components/icons';
 import { Attachments, FilePicker } from '../components/Attachments';
 import { Amount, Field, LoadState, Modal, MoneyInput, RequiredNote, moneyText, useAction, useAsync } from '../components/ui';
 import { money, parseMoney, thisYear, todayIso } from '../lib/format';
-import { loadLedger, rangeBounds, rangeLabel, type Kind, type LeaseRow, type Range } from '../lib/ledger';
+import {
+  DEFAULT_SORT,
+  FIRST_DIR,
+  SORT_LABEL,
+  loadLedger,
+  rangeBounds,
+  rangeLabel,
+  sortRows,
+  type Kind,
+  type LeaseRow,
+  type Range,
+  type Sort,
+  type SortKey,
+} from '../lib/ledger';
 import { LeaseModal, type LeaseTarget } from './LeasePage';
 
 const KIND_LABEL: Record<Kind, string> = {
@@ -30,6 +43,7 @@ export function ExpensesPage() {
   const [vendor, setVendor] = useState('');
   const [accountId, setAccountId] = useState(params.get('account') ?? '');
   const [kind, setKind] = useState<Kind>('');
+  const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [editing, setEditing] = useState<number | 'new' | null>(null);
   const [leaseEditing, setLeaseEditing] = useState<LeaseTarget | null>(null);
   const [openLease, setOpenLease] = useState<number | null>(null);
@@ -46,7 +60,14 @@ export function ExpensesPage() {
   // 처음 화면의 조건: 이번 달, 거래처·계정·구분 없음
   const defaultMonth = now.getMonth() + 1;
   const filtered =
-    mode !== 'month' || year !== thisYear() || month !== defaultMonth || !!vendorInput || !!accountId || kind !== '';
+    mode !== 'month' ||
+    year !== thisYear() ||
+    month !== defaultMonth ||
+    !!vendorInput ||
+    !!accountId ||
+    kind !== '' ||
+    sort.key !== DEFAULT_SORT.key ||
+    sort.dir !== DEFAULT_SORT.dir;
 
   function resetFilters() {
     setMode('month');
@@ -58,6 +79,7 @@ export function ExpensesPage() {
     setVendor('');
     setAccountId('');
     setKind('');
+    setSort(DEFAULT_SORT);
     if (params.toString()) setParams({}, { replace: true });
   }
 
@@ -67,6 +89,14 @@ export function ExpensesPage() {
     [mode, year, month, from, to, vendor, accountId, kind],
   );
   const data = ledger.data;
+  const rows = useMemo(() => (data ? sortRows(data.rows, sort) : []), [data, sort]);
+
+  /** 같은 머리글을 다시 누르면 방향을 바꾸고, 다른 머리글은 그 칸의 기본 방향부터 */
+  function toggleSort(key: SortKey) {
+    setSort((cur) =>
+      cur.key === key ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: FIRST_DIR[key] },
+    );
+  }
 
   const years = Array.from({ length: 6 }, (_, i) => thisYear() - 4 + i);
 
@@ -75,6 +105,7 @@ export function ExpensesPage() {
     const conditions = [
       `조회 기간 ${rangeLabel(range)}`,
       kind && `구분 ${KIND_LABEL[kind]}`,
+      `정렬 ${SORT_LABEL[sort.key]} ${sort.dir === 'asc' ? '오름차순' : '내림차순'}`,
       vendor && `거래처 '${vendor}'`,
       accountId && `차변계정 ${accounts.find((a) => String(a.id) === accountId)?.name ?? ''}`,
     ]
@@ -84,7 +115,7 @@ export function ExpensesPage() {
     setExporting(true);
     await run(async () => {
       const { downloadLedgerPdf } = await import('../lib/pdf');
-      await downloadLedgerPdf(data, {
+      await downloadLedgerPdf({ ...data, rows }, {
         title: `경비 내역 (${rangeLabel(range)})`,
         conditions: `${conditions}. ${todayIso()} 출력`,
         fileName: `경비내역_${f}_${t}.pdf`,
@@ -162,7 +193,7 @@ export function ExpensesPage() {
           <input
             className="input"
             type="search"
-            placeholder="이름 일부로 검색"
+            placeholder="일부만 입력"
             value={vendorInput}
             onChange={(e) => setVendorInput(e.target.value)}
           />
@@ -258,18 +289,18 @@ export function ExpensesPage() {
             <thead>
               <tr>
                 <th>연도</th>
-                <th>일자</th>
-                <th>거래처</th>
-                <th>품명</th>
-                <th className="r">공급가액</th>
-                <th className="r">세액</th>
-                <th className="r">합계</th>
-                <th>차변계정</th>
-                <th>첨부파일</th>
+                <SortTh label="일자" k="date" sort={sort} onSort={toggleSort} />
+                <SortTh label="거래처" k="vendor" sort={sort} onSort={toggleSort} />
+                <SortTh label="품명" k="item" sort={sort} onSort={toggleSort} />
+                <SortTh label="공급가액" k="supply" sort={sort} onSort={toggleSort} right />
+                <SortTh label="세액" k="tax" sort={sort} onSort={toggleSort} right />
+                <SortTh label="합계" k="total" sort={sort} onSort={toggleSort} right />
+                <SortTh label="차변계정" k="account" sort={sort} onSort={toggleSort} />
+                <SortTh label="첨부파일" k="attach" sort={sort} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody>
-              {data.rows.map((r) =>
+              {rows.map((r) =>
                 r.type === 'expense' ? (
                   <ExpenseRow key={`e${r.e.id}`} x={r.e} onOpen={() => setEditing(r.e.id)} />
                 ) : (
@@ -294,6 +325,36 @@ export function ExpensesPage() {
         <LeaseModal target={leaseEditing} onClose={() => setLeaseEditing(null)} onSaved={ledger.reload} />
       )}
     </>
+  );
+}
+
+/** 누르면 정렬되는 머리글. 화면 낭독기에는 aria-sort 로 현재 방향을 알린다. */
+function SortTh({
+  label,
+  k,
+  sort,
+  onSort,
+  right,
+}: {
+  label: string;
+  k: SortKey;
+  sort: Sort;
+  onSort: (k: SortKey) => void;
+  right?: boolean;
+}) {
+  const active = sort.key === k;
+  return (
+    <th className={right ? 'r' : undefined} aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button
+        type="button"
+        className={`sort-btn${active ? ` active ${sort.dir}` : ''}`}
+        onClick={() => onSort(k)}
+        title={`${label} 기준으로 정렬`}
+      >
+        {label}
+        <span className="sort-arrow" aria-hidden />
+      </button>
+    </th>
   );
 }
 

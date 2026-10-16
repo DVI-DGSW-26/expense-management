@@ -1483,3 +1483,51 @@ tr.clickable:hover .attach-add {
   flex-wrap: wrap;
   gap: 10px;
 }
+
+/* 정렬 머리글 */
+.sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sort-btn:hover {
+  color: var(--ink);
+}
+.sort-btn.active {
+  color: var(--primary-text);
+  font-weight: 800;
+}
+/* 위아래 화살표 한 쌍. 정렬 중인 칸은 그 방향 화살표만 진하게 */
+.sort-arrow {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sort-arrow::before,
+.sort-arrow::after {
+  content: '';
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  opacity: 0.35;
+}
+.sort-arrow::before {
+  border-bottom: 5px solid currentColor;
+}
+.sort-arrow::after {
+  border-top: 5px solid currentColor;
+}
+.sort-btn.asc .sort-arrow::before,
+.sort-btn.desc .sort-arrow::after {
+  opacity: 1;
+}
+.sort-btn.asc .sort-arrow::after,
+.sort-btn.desc .sort-arrow::before {
+  opacity: 0;
+}
