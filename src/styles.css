@@ -492,6 +492,12 @@ a {
 textarea.input {
   resize: vertical;
 }
+/* 펼친 드롭다운 목록: 선택 상자 배경이 투명해도 목록은 화면 색을 따른다 (다크 모드에서 흰 바탕에 흰 글씨 방지) */
+select.input option,
+select.input optgroup {
+  background-color: var(--surface);
+  color: var(--ink);
+}
 
 .money-input {
   position: relative;
