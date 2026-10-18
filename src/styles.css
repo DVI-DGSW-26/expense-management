@@ -969,6 +969,49 @@ tr.clickable:hover .attach-add {
   font-size: 14.5px;
   color: var(--muted);
 }
+/* 직접 입력해야 하는 값이 비었을 때 (전기료 미입력) */
+.tag-warn {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+.missing-value {
+  color: var(--neg);
+  font-weight: 700;
+}
+
+/* 임차관리비 고정 금액 */
+.fixed-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+  margin-bottom: 20px;
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.fixed-card dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 0;
+}
+.fixed-card dt {
+  font-size: 14.5px;
+  color: var(--muted);
+}
+.fixed-card dd {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-weight: 800;
+}
+.fixed-card .fixed-note {
+  flex: 1 1 220px;
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-2);
+}
 
 /* ── 상태·알림 ──────────────────────────────────── */
 

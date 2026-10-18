@@ -1,6 +1,7 @@
 import { expenseApi, leaseApi } from '../api/endpoints';
 import type { Expense, ExpenseSource, LeaseMonth } from '../api/types';
 import { monthOf } from '../pages/LeasePage';
+import { fillLeaseMonths } from './leaseAuto';
 
 /** 경비 화면의 구분 필터. LEASE 는 임차관리비만. */
 export type Kind = '' | ExpenseSource | 'LEASE';
@@ -20,7 +21,7 @@ export interface LedgerFilter {
 export interface LeaseRow {
   id: number;
   yearMonth: string;
-  /** 임대료 = 임차비 + 관리비 */
+  /** 임대료 (API 의 임차비) */
   rent: number;
   maintenanceFee: number;
   electricity: number;
@@ -103,6 +104,9 @@ export async function loadLedger(f: LedgerFilter): Promise<Ledger> {
   const wantExpenses = f.kind !== 'LEASE';
   // 임차관리비는 거래처·차변계정이 없으므로 그 조건으로 거르면 뺀다
   const wantLease = (f.kind === '' || f.kind === 'LEASE') && !f.vendor && !f.accountId;
+
+  // 임대료·관리비가 고정인 빈 달을 먼저 채운다 (접속 중 한 번)
+  if (wantLease) await fillLeaseMonths();
 
   const [expenseLists, leaseYears] = await Promise.all([
     wantExpenses

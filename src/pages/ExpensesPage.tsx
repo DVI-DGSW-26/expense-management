@@ -412,9 +412,15 @@ function ExpenseRow({ x, onOpen }: { x: Expense; onOpen: () => void }) {
   );
 }
 
-/** 임차관리비 한 달: 묶음 한 줄, 누르면 임대료(임차비+관리비)와 전기료로 펼친다 */
+/** 임차관리비 한 달: "임차관리비 n원" 한 줄, 누르면 임대료·관리비·전기료로 펼친다 */
 function LeaseRows({ l, open, onToggle, onEdit }: { l: LeaseRow; open: boolean; onToggle: () => void; onEdit: () => void }) {
   const [y, m] = l.yearMonth.split('-');
+  // 임대료·관리비는 자동 등록되고 전기료는 직접 입력한다 (0원 = 아직 입력 안 함)
+  const noElectricity = l.electricity === 0;
+  const parts = [
+    { label: '임대료', value: l.rent, note: '매달 고정' },
+    { label: '관리비', value: l.maintenanceFee, note: '매달 고정' },
+  ];
   return (
     <Fragment>
       <tr className={`clickable lease-row${open ? ' open' : ''}`} onClick={onToggle}>
@@ -423,8 +429,9 @@ function LeaseRows({ l, open, onToggle, onEdit }: { l: LeaseRow; open: boolean; 
         <td className="muted">–</td>
         <td>
           <button className="row-link disclosure" aria-expanded={open} onClick={(e) => (e.stopPropagation(), onToggle())}>
-            임차관리비
+            임차관리비 <span className="num">{money(l.total)}원</span>
           </button>
+          {noElectricity && <span className="tag tag-warn">전기료 미입력</span>}
         </td>
         <td className="r muted">–</td>
         <td className="r muted">–</td>
@@ -434,32 +441,41 @@ function LeaseRows({ l, open, onToggle, onEdit }: { l: LeaseRow; open: boolean; 
         <td className="muted">–</td>
         <td className="nowrap">
           <button className="link" onClick={(e) => (e.stopPropagation(), onEdit())}>
-            수정·첨부
+            {noElectricity ? '전기료 입력' : '수정·첨부'}
           </button>
         </td>
       </tr>
       {open && (
         <>
+          {parts.map((p) => (
+            <tr key={p.label} className="lease-part">
+              <td colSpan={3} />
+              <td>
+                {p.label}
+                <span className="part-detail">{p.note}</span>
+              </td>
+              <td colSpan={2} />
+              <td className="r">
+                <Amount value={p.value} />
+              </td>
+              <td colSpan={2} />
+            </tr>
+          ))}
           <tr className="lease-part">
             <td colSpan={3} />
             <td>
-              임대료
-              <span className="part-detail num">
-                임차비 {money(l.rent)} + 관리비 {money(l.maintenanceFee)}
-              </span>
+              전기료
+              <span className="part-detail">직접 입력</span>
             </td>
             <td colSpan={2} />
             <td className="r">
-              <Amount value={l.rent + l.maintenanceFee} />
-            </td>
-            <td colSpan={2} />
-          </tr>
-          <tr className="lease-part">
-            <td colSpan={3} />
-            <td>전기료</td>
-            <td colSpan={2} />
-            <td className="r">
-              <Amount value={l.electricity} />
+              {noElectricity ? (
+                <button className="link" onClick={onEdit}>
+                  입력하기
+                </button>
+              ) : (
+                <Amount value={l.electricity} />
+              )}
             </td>
             <td colSpan={2} />
           </tr>

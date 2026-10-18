@@ -35,7 +35,7 @@ export async function downloadLedgerPdf(ledger: Ledger, opts: { title: string; c
         y,
         `${Number(m)}월분`,
         '',
-        `임차관리비 (임대료 ${money(r.l.rent + r.l.maintenanceFee)} / 전기료 ${money(r.l.electricity)})`,
+        `임차관리비 (임대료 ${money(r.l.rent)} / 관리비 ${money(r.l.maintenanceFee)} / 전기료 ${r.l.electricity ? money(r.l.electricity) : '미입력'})`,
         '',
         '',
         money(r.l.total),
