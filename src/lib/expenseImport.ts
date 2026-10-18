@@ -61,7 +61,7 @@ function findHeader(rows: Cell[][]): { index: number; cols: Record<Col, number> 
 }
 
 /** 엑셀 날짜 칸 → "YYYY-MM-DD". 일련번호, "07-07"(연도 칸과 합침), "7/31/26", "2026.07.07" 을 읽는다. */
-function parseDate(cell: Cell, yearCell: Cell): string | null {
+export function parseDate(cell: Cell, yearCell: Cell): string | null {
   if (typeof cell === 'number') {
     // 엑셀 일련번호: 1899-12-30 기준 일수
     const d = new Date(Date.UTC(1899, 11, 30) + Math.round(cell) * 86400000);
@@ -78,7 +78,7 @@ function parseDate(cell: Cell, yearCell: Cell): string | null {
   return null;
 }
 
-function parseAmount(cell: Cell): number | null {
+export function parseAmount(cell: Cell): number | null {
   if (typeof cell === 'number') return Math.round(cell);
   const s = clean(cell).replace(/[,원\s]/g, '');
   if (!s || !/^-?\d+(\.\d+)?$/.test(s)) return null;

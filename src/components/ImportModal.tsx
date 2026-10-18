@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { planImport, runImport, type ImportPlan, type ImportRow } from '../lib/expenseImport';
 import { money } from '../lib/format';
+import { isLeaseWorkbook } from '../lib/leaseImport';
 import { readXlsx } from '../lib/xlsx';
 import { useAccounts } from './accounts';
 import { Amount, Modal, useToast } from './ui';
@@ -39,7 +40,14 @@ export function ImportModal({
     setError('');
     setReading(true);
     try {
-      setPlan(await planImport(await readXlsx(file), accounts));
+      const sheets = await readXlsx(file);
+      try {
+        setPlan(await planImport(sheets, accounts));
+      } catch (e) {
+        // 임차관리비 청구서 엑셀이면 어디서 가져오는지 알려 준다
+        if (isLeaseWorkbook(sheets)) throw new Error("임차관리비 엑셀입니다. '임차관리비' 화면의 '엑셀 가져오기'에서 가져오세요.");
+        throw e;
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

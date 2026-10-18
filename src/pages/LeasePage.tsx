@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { leaseApi } from '../api/endpoints';
 import type { LeaseCost, LeaseMonth } from '../api/types';
 import { Attachments, FilePicker } from '../components/Attachments';
+import { UploadIcon } from '../components/icons';
+import { LeaseImportModal } from '../components/LeaseImportModal';
 import { Amount, Field, LoadState, Modal, MoneyInput, RequiredNote, YearStepper, moneyText, useAction, useAsync } from '../components/ui';
 import { money, parseMoney, thisYear } from '../lib/format';
 import { fillLeaseMonths, fixedLease, setFixedLease, type FixedLease } from '../lib/leaseAuto';
@@ -24,16 +26,25 @@ export function LeasePage() {
   const fixed = useAsync(() => fixedLease(), []);
   const [editing, setEditing] = useState<LeaseTarget | null>(null);
   const [settingFixed, setSettingFixed] = useState(false);
+  const [importing, setImporting] = useState(false);
   const data = table.data;
   const now = new Date();
   const currentYm = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
   const f = fixed.data;
+  // 임대를 시작한 달(처음 등록된 달) 이후 이번 달까지 비어 있으면 미등록으로 표시한다
+  const isMissing = (ym: string) => !!f && ym > f.firstYm && ym <= currentYm;
 
   return (
     <>
       <header className="page-head">
         <h1>임차관리비</h1>
-        <YearStepper year={year} onChange={setYear} />
+        <div className="head-actions">
+          <button className="btn btn-soft" onClick={() => setImporting(true)}>
+            <UploadIcon size={18} />
+            엑셀 가져오기
+          </button>
+          <YearStepper year={year} onChange={setYear} />
+        </div>
       </header>
       <p className="page-lede">임대료·관리비는 매달 같은 금액으로 자동 등록됩니다. 전기료만 달마다 입력하세요.</p>
 
@@ -94,11 +105,11 @@ export function LeasePage() {
                 const open = () => setEditing(m.id ? { id: m.id } : { yearMonth: ym });
                 if (!m.id) {
                   return (
-                    <tr key={mm} className={`empty-row${ym === currentYm ? ' current' : ''}${ym <= currentYm ? ' missing' : ''}`} onClick={open}>
+                    <tr key={mm} className={`empty-row${ym === currentYm ? ' current' : ''}${isMissing(ym) ? ' missing' : ''}`} onClick={open}>
                       <td className="nowrap">{mm}월</td>
                       <td colSpan={4}>
                         <button className="row-link quiet" onClick={open}>
-                          {ym <= currentYm ? '미등록, 눌러서 등록' : '등록'}
+                          {isMissing(ym) ? '미등록, 눌러서 등록' : '등록'}
                         </button>
                       </td>
                     </tr>
@@ -156,6 +167,7 @@ export function LeasePage() {
           onSaved={() => (table.reload(), fixed.reload())}
         />
       )}
+      {importing && <LeaseImportModal onClose={() => setImporting(false)} onDone={() => (table.reload(), fixed.reload())} />}
       {settingFixed && (
         <FixedLeaseModal
           initial={f}

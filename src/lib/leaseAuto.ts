@@ -26,6 +26,8 @@ export interface FixedLease {
   since: string;
   /** 이 금액이 적힌 마지막 달 */
   lastYm: string;
+  /** 처음 등록된 달 (임대 시작) */
+  firstYm: string;
 }
 
 interface Registered {
@@ -66,7 +68,7 @@ export async function fixedLease(): Promise<FixedLease | null> {
     if (past[i].rent !== last.rent || past[i].maintenanceFee !== last.maintenanceFee) break;
     since = past[i].ym;
   }
-  return { rent: last.rent, maintenanceFee: last.maintenanceFee, since, lastYm: last.ym };
+  return { rent: last.rent, maintenanceFee: last.maintenanceFee, since, lastYm: last.ym, firstYm: rows[0].ym };
 }
 
 /** 마지막 등록 달 다음부터 이번 달까지 고정 금액으로 등록한다. 만든 달 수를 돌려준다. */
@@ -95,6 +97,12 @@ let filling: Promise<number> | null = null;
 export function fillLeaseMonths(): Promise<number> {
   filling ??= fill().catch(() => 0);
   return filling;
+}
+
+/** 임차관리비를 새로 등록한 뒤(엑셀 가져오기 등) 빈 달을 다시 채운다 */
+export function refillLeaseMonths(): Promise<number> {
+  filling = null;
+  return fillLeaseMonths();
 }
 
 /**
