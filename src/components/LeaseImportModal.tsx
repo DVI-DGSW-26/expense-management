@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { refillLeaseMonths } from '../lib/leaseAuto';
 import { planLeaseImport, runLeaseImport, type LeaseImportPlan, type LeaseImportRow } from '../lib/leaseImport';
 import { money } from '../lib/format';
 import { readXlsx } from '../lib/xlsx';
@@ -10,6 +9,8 @@ const STATUS_LABEL: Record<LeaseImportRow['status'], string> = {
   duplicate: '건너뜀',
   error: '오류',
 };
+
+const orMissing = (v: number | null) => (v === null ? <span className="missing-value">미입력</span> : <Amount value={v} />);
 
 const ymLabel = (ym: string) => (ym ? `${Number(ym.slice(0, 4))}년 ${Number(ym.slice(5, 7))}월` : '–');
 
@@ -46,8 +47,6 @@ export function LeaseImportModal({ onClose, onDone }: { onClose: () => void; onD
       const r = await runLeaseImport(plan, (done, total) => setProgress({ done, total }));
       setResult(r);
       toast(`임차관리비 ${r.created}개월을 등록했습니다.${r.failed.length ? ` ${r.failed.length}건은 실패했습니다.` : ''}`, r.failed.length ? 'error' : 'ok');
-      // 마지막 달 다음부터 이번 달까지 고정 금액으로 채운다
-      await refillLeaseMonths();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -58,14 +57,13 @@ export function LeaseImportModal({ onClose, onDone }: { onClose: () => void; onD
 
   const count = (s: LeaseImportRow['status']) => plan?.rows.filter((r) => r.status === s).length ?? 0;
   const busy = reading || progress !== null;
-  const hasExtra = plan?.rows.some((r) => r.vat || r.powerFund);
 
   return (
     <Modal title="엑셀로 임차관리비 가져오기" onClose={busy ? () => {} : onClose} wide>
       <div className="stack">
         <p className="import-help">
-          머리글에 <b>날짜 · 청구월 · 임대료 · 관리비 · 전기료</b>가 있는 엑셀(.xlsx)을 고르세요. 한 줄이 한 달이며, 이미 등록된 달은
-          건너뜁니다. 전기료가 빈칸인 달은 '미입력'으로 등록됩니다.
+          머리글에 <b>날짜 · 청구월 · 임대료 · 관리비 · 전기료 · VAT · 전력기금</b>이 있는 엑셀(.xlsx)을 고르세요. 한 줄이 한 달이며, 이미 등록된 달은
+          건너뜁니다. VAT·전력기금도 함께 저장되고, 빈칸은 '미입력'으로 등록됩니다.
         </p>
 
         {!result && (
@@ -91,13 +89,6 @@ export function LeaseImportModal({ onClose, onDone }: { onClose: () => void; onD
               <span className="muted">'{plan.sheetName}' 시트</span>
             </div>
 
-            {hasExtra && (
-              <div className="note">
-                <p>
-                  엑셀의 <b>VAT</b>와 <b>전력기금</b>은 아직 API 에 칸이 없어 저장되지 않습니다. 앱의 합계는 임대료 + 관리비 + 전기료입니다.
-                </p>
-              </div>
-            )}
 
             <div className="ledger-wrap import-preview">
               <table className="ledger compact">
@@ -125,9 +116,9 @@ export function LeaseImportModal({ onClose, onDone }: { onClose: () => void; onD
                       <td className="r">
                         <Amount value={r.maintenanceFee} />
                       </td>
-                      <td className="r">{r.electricity ? <Amount value={r.electricity} /> : <span className="missing-value">미입력</span>}</td>
-                      <td className="r muted">{r.vat === null ? '–' : money(r.vat)}</td>
-                      <td className="r muted">{r.powerFund === null ? '–' : money(r.powerFund)}</td>
+                      <td className="r">{orMissing(r.electricity)}</td>
+                      <td className="r">{orMissing(r.vat)}</td>
+                      <td className="r">{orMissing(r.powerFund)}</td>
                       <td className="r muted">{r.billTotal === null ? '–' : money(r.billTotal)}</td>
                       <td className="nowrap" title={r.problem}>
                         <span className={`pill pill-${r.status}`}>{STATUS_LABEL[r.status]}</span>

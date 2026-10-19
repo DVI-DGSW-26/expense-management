@@ -113,14 +113,14 @@ export function ExpensesPage() {
     ]
       .filter(Boolean)
       .join(', ');
-    const { from: f, to: t } = rangeBounds(range);
+    const b = rangeBounds(range);
     setExporting(true);
     await run(async () => {
       const { downloadLedgerPdf } = await import('../lib/pdf');
       await downloadLedgerPdf({ ...data, rows }, {
         title: `경비 내역 (${rangeLabel(range)})`,
         conditions: `${conditions}. ${todayIso()} 출력`,
-        fileName: `경비내역_${f}_${t}.pdf`,
+        fileName: b ? `경비내역_${b.from}_${b.to}.pdf` : `경비내역_전체.pdf`,
       });
     });
     setExporting(false);
@@ -390,6 +390,14 @@ function ExpenseRow({ x, onOpen }: { x: Expense; onOpen: () => void }) {
       <td className="muted-cell">
         {x.itemName}
         {x.source === 'SUBSCRIPTION' && <span className="tag">구독</span>}
+        {x.currency && x.currency !== 'KRW' && x.foreignAmount != null && (
+          <span
+            className="tag"
+            title={x.exchangeRate ? `환율 ${x.exchangeRate.toLocaleString('ko-KR')}원 (${x.rateDate ?? ''} 고시)` : undefined}
+          >
+            {x.currency} {x.foreignAmount.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}
+          </span>
+        )}
       </td>
       <td className="r">
         <Amount value={x.supplyAmount} />
@@ -412,15 +420,18 @@ function ExpenseRow({ x, onOpen }: { x: Expense; onOpen: () => void }) {
   );
 }
 
-/** 임차관리비 한 달: "임차관리비 n원" 한 줄, 누르면 임대료·관리비·전기료로 펼친다 */
+/** 임차관리비 한 달: "임차관리비 n원" 한 줄, 누르면 임대료·관리비·전기료·부가세·전력기금으로 펼친다 */
 function LeaseRows({ l, open, onToggle, onEdit }: { l: LeaseRow; open: boolean; onToggle: () => void; onEdit: () => void }) {
   const [y, m] = l.yearMonth.split('-');
-  // 임대료·관리비는 자동 등록되고 전기료는 직접 입력한다 (0원 = 아직 입력 안 함)
-  const noElectricity = l.electricity === 0;
-  const parts = [
+  // 임대료·관리비는 고정 금액으로 자동 등록되고, 나머지는 청구서를 보고 입력한다 (null = 아직 입력 안 함)
+  const parts: { label: string; value: number | null; note: string }[] = [
     { label: '임대료', value: l.rent, note: '매달 고정' },
     { label: '관리비', value: l.maintenanceFee, note: '매달 고정' },
+    { label: '전기료', value: l.electricity, note: '청구서 입력' },
+    { label: '부가세', value: l.vat, note: '청구서 입력' },
+    { label: '전력기금', value: l.powerFund, note: '수도광열비' },
   ];
+  const missing = parts.filter((p) => p.value === null).map((p) => p.label);
   return (
     <Fragment>
       <tr className={`clickable lease-row${open ? ' open' : ''}`} onClick={onToggle}>
@@ -431,7 +442,7 @@ function LeaseRows({ l, open, onToggle, onEdit }: { l: LeaseRow; open: boolean; 
           <button className="row-link disclosure" aria-expanded={open} onClick={(e) => (e.stopPropagation(), onToggle())}>
             임차관리비 <span className="num">{money(l.total)}원</span>
           </button>
-          {noElectricity && <span className="tag tag-warn">전기료 미입력</span>}
+          {missing.length > 0 && <span className="tag tag-warn">{missing.join('·')} 미입력</span>}
         </td>
         <td className="r muted">–</td>
         <td className="r muted">–</td>
@@ -441,46 +452,31 @@ function LeaseRows({ l, open, onToggle, onEdit }: { l: LeaseRow; open: boolean; 
         <td className="muted">–</td>
         <td className="nowrap">
           <button className="link" onClick={(e) => (e.stopPropagation(), onEdit())}>
-            {noElectricity ? '전기료 입력' : '수정·첨부'}
+            {missing.length ? '청구서 입력' : l.attachmentCount ? `${l.attachmentCount}개` : '수정·첨부'}
           </button>
         </td>
       </tr>
-      {open && (
-        <>
-          {parts.map((p) => (
-            <tr key={p.label} className="lease-part">
-              <td colSpan={3} />
-              <td>
-                {p.label}
-                <span className="part-detail">{p.note}</span>
-              </td>
-              <td colSpan={2} />
-              <td className="r">
-                <Amount value={p.value} />
-              </td>
-              <td colSpan={2} />
-            </tr>
-          ))}
-          <tr className="lease-part">
+      {open &&
+        parts.map((p) => (
+          <tr key={p.label} className="lease-part">
             <td colSpan={3} />
             <td>
-              전기료
-              <span className="part-detail">직접 입력</span>
+              {p.label}
+              <span className="part-detail">{p.note}</span>
             </td>
             <td colSpan={2} />
             <td className="r">
-              {noElectricity ? (
+              {p.value === null ? (
                 <button className="link" onClick={onEdit}>
                   입력하기
                 </button>
               ) : (
-                <Amount value={l.electricity} />
+                <Amount value={p.value} />
               )}
             </td>
             <td colSpan={2} />
           </tr>
-        </>
-      )}
+        ))}
     </Fragment>
   );
 }
@@ -569,9 +565,7 @@ function ExpenseForm({
   const [itemName, setItemName] = useState(initial?.itemName ?? '');
   const [supply, setSupply] = useState(moneyText(initial?.supplyAmount));
   const [tax, setTax] = useState(moneyText(initial?.taxAmount));
-  const [total, setTotal] = useState(
-    initial && initial.totalAmount !== initial.supplyAmount + initial.taxAmount ? moneyText(initial.totalAmount) : '',
-  );
+  const [businessNumber, setBusinessNumber] = useState(initial?.businessNumber ?? '');
   const [accountId, setAccountId] = useState(initial ? String(initial.debitAccountId) : '');
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -591,8 +585,8 @@ function ExpenseForm({
         itemName: itemName.trim(),
         supplyAmount: supplyN,
         taxAmount: taxN ?? 0,
-        // 비워 두면 공급가액 + 세액
-        totalAmount: parseMoney(total) ?? autoTotal ?? undefined,
+        // 합계는 서버가 공급가액 + 세액으로 계산한다. 수정 때 빈 문자열은 지우기.
+        businessNumber: businessNumber.trim(),
         debitAccountId: Number(accountId),
       },
       files,
@@ -609,8 +603,17 @@ function ExpenseForm({
       <Field label="차변계정" required>
         <AccountSelect value={accountId} onChange={setAccountId} required emptyLabel="계정 선택" allowCreate />
       </Field>
-      <Field label="거래처" className="span-2" required>
+      <Field label="거래처" required>
         <input className="input" value={vendor} onChange={(e) => setVendor(e.target.value)} required />
+      </Field>
+      <Field label="사업자등록번호">
+        <input
+          className="input num"
+          value={businessNumber}
+          onChange={(e) => setBusinessNumber(e.target.value)}
+          inputMode="numeric"
+          placeholder="000-00-00000"
+        />
       </Field>
       <Field label="품명" className="span-2" required>
         <input className="input" value={itemName} onChange={(e) => setItemName(e.target.value)} required />
@@ -626,9 +629,11 @@ function ExpenseForm({
           placeholder="0"
         />
       </Field>
-      <Field label="합계" className="span-2" hint="비워 두면 공급가액 + 세액으로 저장합니다.">
-        <MoneyInput value={total} onChange={setTotal} allowNegative placeholder={autoTotal !== null ? money(autoTotal) : ''} />
-      </Field>
+      <div className="field span-2">
+        <span className="field-label">합계</span>
+        <span className="sum-readout num">{autoTotal !== null ? `${money(autoTotal)}원` : '–'}</span>
+        <span className="field-hint">공급가액 + 세액으로 자동 계산됩니다.</span>
+      </div>
       {supplyN !== null && !tax && (
         <p className="span-2 field-hint">
           세액 10%를 넣으려면{' '}

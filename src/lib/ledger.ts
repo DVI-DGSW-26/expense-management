@@ -1,7 +1,5 @@
-import { expenseApi, leaseApi } from '../api/endpoints';
-import type { Expense, ExpenseSource, LeaseMonth } from '../api/types';
-import { monthOf } from '../pages/LeasePage';
-import { fillLeaseMonths } from './leaseAuto';
+import { expenseApi, leaseApi, type PeriodQuery } from '../api/endpoints';
+import type { Expense, ExpenseSource, LeaseMonthRow } from '../api/types';
 
 /** 경비 화면의 구분 필터. LEASE 는 임차관리비만. */
 export type Kind = '' | ExpenseSource | 'LEASE';
@@ -18,14 +16,18 @@ export interface LedgerFilter {
   kind: Kind;
 }
 
+/** 임차관리비 한 달. 전기료·부가세·전력기금은 아직 입력하지 않았으면 null. */
 export interface LeaseRow {
   id: number;
   yearMonth: string;
-  /** 임대료 (API 의 임차비) */
   rent: number;
   maintenanceFee: number;
-  electricity: number;
+  electricity: number | null;
+  vat: number | null;
+  powerFund: number | null;
   total: number;
+  autoCreated: boolean;
+  attachmentCount: number;
 }
 
 export type Row = { type: 'expense'; date: string; e: Expense } | { type: 'lease'; date: string; l: LeaseRow };
@@ -40,13 +42,7 @@ export interface Ledger {
   grandTotal: number;
 }
 
-/** 기간 조회는 해마다 API 를 부르므로 범위를 제한한다 */
-export const MAX_PERIOD_YEARS = 5;
-
-/**
- * '전체'로 조회할 연도들 (연도 선택 목록과 같다).
- * API 는 한 번에 한 해씩만 조회되므로 이 해들을 모두 불러 합친다.
- */
+/** 연도 선택 목록 */
 export function selectableYears(): number[] {
   const y = new Date().getFullYear();
   return Array.from({ length: 6 }, (_, i) => y - 4 + i);
@@ -54,12 +50,10 @@ export function selectableYears(): number[] {
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-export function rangeBounds(r: Range): { from: string; to: string } {
+/** 조회 범위의 첫날·마지막 날. 전체 연도는 null. */
+export function rangeBounds(r: Range): { from: string; to: string } | null {
   if (r.mode === 'period') return { from: r.from, to: r.to };
-  if (r.year === null) {
-    const ys = selectableYears();
-    return { from: `${ys[0]}-01-01`, to: `${ys[ys.length - 1]}-12-31` };
-  }
+  if (r.year === null) return null;
   if (r.month) {
     const last = new Date(r.year, r.month, 0).getDate();
     return { from: `${r.year}-${pad(r.month)}-01`, to: `${r.year}-${pad(r.month)}-${pad(last)}` };
@@ -75,64 +69,51 @@ export function rangeLabel(r: Range): string {
   return `${r.from.replaceAll('-', '.')} ~ ${r.to.replaceAll('-', '.')}`;
 }
 
-function toLeaseRow(m: LeaseMonth, year: number, index: number): LeaseRow | null {
+function toLeaseRow(m: LeaseMonthRow): LeaseRow | null {
   if (!m.id) return null;
-  const rent = m.rent ?? 0;
-  const maintenanceFee = m.maintenanceFee ?? 0;
-  const electricity = m.electricity ?? 0;
   return {
     id: m.id,
-    yearMonth: m.yearMonth ?? `${year}-${pad(monthOf(m, index))}`,
-    rent,
-    maintenanceFee,
-    electricity,
-    total: m.total ?? rent + maintenanceFee + electricity,
+    yearMonth: m.yearMonth,
+    rent: m.rent ?? 0,
+    maintenanceFee: m.maintenanceFee ?? 0,
+    electricity: m.electricity,
+    vat: m.vat,
+    powerFund: m.powerFund,
+    total: m.total ?? 0,
+    autoCreated: !!m.autoCreated,
+    attachmentCount: m.attachmentCount ?? 0,
   };
 }
 
+/** 경비와 임차관리비를 한 번씩 불러 한 표로 합친다 (전체·기간도 한 번에 조회) */
 export async function loadLedger(f: LedgerFilter): Promise<Ledger> {
-  const { from, to } = rangeBounds(f.range);
-  const fromYear = Number(from.slice(0, 4));
-  const toYear = Number(to.slice(0, 4));
-  if (to < from) throw new Error('종료일이 시작일보다 빠릅니다.');
-  const allYears = f.range.mode === 'month' && f.range.year === null;
-  if (!allYears && toYear - fromYear + 1 > MAX_PERIOD_YEARS)
-    throw new Error(`기간은 최대 ${MAX_PERIOD_YEARS}년까지 조회할 수 있습니다.`);
-  const years = Array.from({ length: toYear - fromYear + 1 }, (_, i) => fromYear + i);
-  const month = f.range.mode === 'month' ? f.range.month ?? undefined : undefined;
+  const bounds = rangeBounds(f.range);
+  if (bounds && bounds.to < bounds.from) throw new Error('종료일이 시작일보다 빠릅니다.');
+  // 전체 연도의 특정 월은 전체를 불러 그 달만 남긴다
+  const month = f.range.mode === 'month' ? f.range.month : null;
+  const period: PeriodQuery = bounds ?? {};
 
   const wantExpenses = f.kind !== 'LEASE';
   // 임차관리비는 거래처·차변계정이 없으므로 그 조건으로 거르면 뺀다
   const wantLease = (f.kind === '' || f.kind === 'LEASE') && !f.vendor && !f.accountId;
 
-  // 임대료·관리비가 고정인 빈 달을 먼저 채운다 (접속 중 한 번)
-  if (wantLease) await fillLeaseMonths();
-
-  const [expenseLists, leaseYears] = await Promise.all([
+  const [expenseList, leasePeriod] = await Promise.all([
     wantExpenses
-      ? Promise.all(
-          years.map((year) =>
-            expenseApi.list({
-              year,
-              month,
-              vendor: f.vendor || undefined,
-              debitAccountId: f.accountId ?? undefined,
-              source: f.kind === 'MANUAL' || f.kind === 'SUBSCRIPTION' ? f.kind : undefined,
-            }),
-          ),
-        )
-      : Promise.resolve([]),
-    wantLease ? Promise.all(years.map((year) => leaseApi.year(year))) : Promise.resolve([]),
+      ? expenseApi.list({
+          ...period,
+          vendor: f.vendor || undefined,
+          debitAccountId: f.accountId ?? undefined,
+          source: f.kind === 'MANUAL' || f.kind === 'SUBSCRIPTION' ? f.kind : undefined,
+        })
+      : null,
+    wantLease ? leaseApi.period(period) : null,
   ]);
 
-  const expenses = expenseLists.flatMap((l) => l.items).filter((e) => e.expenseDate >= from && e.expenseDate <= to);
-  const fromYm = from.slice(0, 7);
-  const toYm = to.slice(0, 7);
-  const leases = leaseYears
-    .flatMap((y) => y.months.map((m, i) => toLeaseRow(m, y.year, i)))
-    .filter((l): l is LeaseRow => !!l && l.yearMonth >= fromYm && l.yearMonth <= toYm)
-    // 전체 연도 + 특정 월이면 그 달만
-    .filter((l) => !month || Number(l.yearMonth.slice(5, 7)) === month);
+  const inMonth = (date: string) => !month || Number(date.slice(5, 7)) === month;
+  const expenses = (expenseList?.items ?? []).filter((e) => inMonth(e.expenseDate));
+  const leases = (leasePeriod?.months ?? [])
+    .map(toLeaseRow)
+    .filter((l): l is LeaseRow => !!l && inMonth(l.yearMonth));
 
   const rows: Row[] = [
     ...expenses.map((e) => ({ type: 'expense' as const, date: e.expenseDate, e })),
@@ -194,7 +175,8 @@ function sortValue(r: Row, key: SortKey): string | number | null {
     if (key === 'date') return r.date;
     if (key === 'item') return '임차관리비';
     if (key === 'total') return r.l.total;
-    return null; // 임차관리비에는 거래처·공급가액·세액·계정·첨부 수가 없다
+    if (key === 'attach') return r.l.attachmentCount;
+    return null; // 임차관리비에는 거래처·공급가액·세액·계정이 없다
   }
   const e = r.e;
   switch (key) {

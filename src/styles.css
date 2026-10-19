@@ -979,6 +979,27 @@ tr.clickable:hover .attach-add {
   font-weight: 700;
 }
 
+/* 체크 상자 한 줄 */
+.check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+.check .muted {
+  flex-basis: 100%;
+  padding-left: 30px;
+  font-size: 14.5px;
+  font-weight: 400;
+}
+
 /* 임차관리비 고정 금액 */
 .fixed-card {
   display: flex;

@@ -7,6 +7,8 @@ export interface ImportRow {
   line: number; // 엑셀 행 번호
   expenseDate: string;
   vendor: string;
+  /** 사업자등록번호 (없으면 빈 문자열) */
+  businessNumber: string;
   itemName: string;
   supplyAmount: number;
   taxAmount: number;
@@ -15,7 +17,7 @@ export interface ImportRow {
   /** 등록 / 이미 있어 건너뜀 / 형식 오류 */
   status: 'new' | 'duplicate' | 'error';
   problem?: string;
-  /** 합계가 공급가액 + 세액과 다르면 안내만 한다 (그대로 저장) */
+  /** 합계가 공급가액 + 세액과 다르면 안내만 한다 (서버는 공급가액 + 세액으로 저장) */
   totalMismatch?: boolean;
   /** 이미 있는 같은 경비 (건너뛸 때 누가 언제 등록했는지 보여 준다) */
   existing?: { id: number; createdBy?: string; createdAt?: string; inFile?: number };
@@ -36,6 +38,7 @@ const HEADERS = {
   year: ['연도', '년도'],
   date: ['일자', '날짜', '거래일자'],
   vendor: ['거래처', '거래처명'],
+  businessNumber: ['사업자등록번호', '사업자번호', '등록번호'],
   item: ['품명', '내역', '적요'],
   supply: ['공급가액'],
   tax: ['세액', '부가세'],
@@ -104,6 +107,7 @@ export async function planImport(sheets: Sheet[], accounts: DebitAccount[]): Pro
     const r = sheet.rows[i];
     if (!r || r.every((c) => clean(c) === '')) continue;
     const vendor = clean(at(r, 'vendor'));
+    const businessNumber = clean(at(r, 'businessNumber'));
     const itemName = clean(at(r, 'item'));
     const date = parseDate(at(r, 'date'), at(r, 'year'));
     const supply = parseAmount(at(r, 'supply'));
@@ -125,6 +129,7 @@ export async function planImport(sheets: Sheet[], accounts: DebitAccount[]): Pro
       line: i + 1,
       expenseDate: date ?? '',
       vendor,
+      businessNumber,
       itemName,
       supplyAmount: supply ?? 0,
       taxAmount: tax,
@@ -138,8 +143,10 @@ export async function planImport(sheets: Sheet[], accounts: DebitAccount[]): Pro
   if (rows.length === 0) throw new Error(`'${sheet.name}' 시트에 가져올 경비가 없습니다.`);
 
   // 이미 등록된 경비와 비교 (해당 연도들만 조회)
-  const years = [...new Set(rows.filter((r) => r.status === 'new').map((r) => Number(r.expenseDate.slice(0, 4))))];
-  const existing: Expense[] = (await Promise.all(years.map((year) => expenseApi.list({ year })))).flatMap((l) => l.items);
+  const newDates = rows.filter((r) => r.status === 'new').map((r) => r.expenseDate).sort();
+  const existing: Expense[] = newDates.length
+    ? (await expenseApi.list({ from: newDates[0], to: newDates[newDates.length - 1] })).items
+    : [];
   const seen = new Map<string, ImportRow['existing']>(
     existing.map((e) => [dupKey(e.expenseDate, e.vendor, e.itemName, e.totalAmount), { id: e.id, createdBy: e.createdBy, createdAt: e.createdAt }]),
   );
@@ -174,12 +181,11 @@ export async function planImport(sheets: Sheet[], accounts: DebitAccount[]): Pro
   return { sheetName: sheet.name, rows, newAccounts, matchedAccounts, range };
 }
 
-/** 계획대로 계정을 만들고 경비를 한 건씩 등록한다. 진행 상황을 onProgress 로 알린다. */
+/** 없는 계정을 만든 뒤 경비를 한 번에 등록한다 (POST /expense/bulk). 중복은 서버가 다시 확인해 건너뛴다. */
 export async function runImport(
   plan: ImportPlan,
   accounts: DebitAccount[],
-  onProgress: (done: number, total: number) => void,
-): Promise<{ created: number; failed: { row: ImportRow; message: string }[] }> {
+): Promise<{ created: number; duplicated: number; failed: { row: ImportRow; message: string }[] }> {
   const ids = new Map<string, number>(accounts.map((a) => [a.name, a.id]));
   for (const m of plan.matchedAccounts) ids.set(m.from, m.to.id);
   let order = Math.max(0, ...accounts.map((a) => a.sortOrder));
@@ -190,27 +196,20 @@ export async function runImport(
   }
 
   const targets = plan.rows.filter((r) => r.status === 'new');
-  const failed: { row: ImportRow; message: string }[] = [];
-  let created = 0;
-  for (const [i, r] of targets.entries()) {
-    try {
-      await expenseApi.create(
-        {
-          expenseDate: r.expenseDate,
-          vendor: r.vendor,
-          itemName: r.itemName,
-          supplyAmount: r.supplyAmount,
-          taxAmount: r.taxAmount,
-          totalAmount: r.totalAmount,
-          debitAccountId: ids.get(r.accountName)!,
-        },
-        [],
-      );
-      created++;
-    } catch (e) {
-      failed.push({ row: r, message: e instanceof Error ? e.message : String(e) });
-    }
-    onProgress(i + 1, targets.length);
-  }
-  return { created, failed };
+  const res = await expenseApi.bulk(
+    targets.map((r) => ({
+      expenseDate: r.expenseDate,
+      vendor: r.vendor,
+      businessNumber: r.businessNumber || undefined,
+      itemName: r.itemName,
+      supplyAmount: r.supplyAmount,
+      taxAmount: r.taxAmount,
+      debitAccountId: ids.get(r.accountName),
+      debitAccountName: r.accountName,
+    })),
+  );
+  const failed = res.results
+    .filter((x) => x.status === 'FAILED')
+    .map((x) => ({ row: targets[x.index], message: x.message ?? '등록하지 못했습니다.' }));
+  return { created: res.created, duplicated: res.duplicated, failed };
 }

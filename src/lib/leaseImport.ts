@@ -1,5 +1,4 @@
 import { leaseApi } from '../api/endpoints';
-import type { LeaseYear } from '../api/types';
 import { parseAmount, parseDate } from './expenseImport';
 import type { Cell, Sheet } from './xlsx';
 
@@ -9,11 +8,11 @@ export interface LeaseImportRow {
   yearMonth: string;
   rent: number;
   maintenanceFee: number;
-  /** 빈칸이면 0 (미입력) */
-  electricity: number;
-  /** 엑셀에만 있고 API 에 칸이 없는 값 (미리보기 안내용) */
+  /** 빈칸이면 null (미입력) */
+  electricity: number | null;
   vat: number | null;
   powerFund: number | null;
+  /** 엑셀의 청구 합계 (미리보기에서 비교용) */
   billTotal: number | null;
   status: 'new' | 'duplicate' | 'error';
   problem?: string;
@@ -84,7 +83,7 @@ export async function planLeaseImport(sheets: Sheet[]): Promise<LeaseImportPlan>
       yearMonth: yearMonth ?? '',
       rent: rent ?? 0,
       maintenanceFee: fee ?? 0,
-      electricity: parseAmount(at(r, 'elec')) ?? 0,
+      electricity: parseAmount(at(r, 'elec')),
       vat: parseAmount(at(r, 'vat')),
       powerFund: parseAmount(at(r, 'fund')),
       billTotal: parseAmount(at(r, 'total')),
@@ -95,11 +94,14 @@ export async function planLeaseImport(sheets: Sheet[]): Promise<LeaseImportPlan>
   if (rows.length === 0) throw new Error(`'${sheet.name}' 시트에 가져올 임차관리비가 없습니다.`);
 
   // 이미 등록된 달은 건너뛴다 (API 가 같은 달을 409 로 막는다)
-  const years = [...new Set(rows.filter((r) => r.yearMonth).map((r) => Number(r.yearMonth.slice(0, 4))))];
-  const lists: LeaseYear[] = await Promise.all(years.map((y) => leaseApi.year(y)));
-  const registered = new Set(
-    lists.flatMap((y) => y.months.filter((m) => m.id).map((m, i) => m.yearMonth ?? `${y.year}-${pad(m.month ?? i + 1)}`)),
-  );
+  const yms = rows.map((r) => r.yearMonth).filter(Boolean).sort();
+  const registered = new Set<string>();
+  if (yms.length) {
+    const last = yms[yms.length - 1];
+    const lastDay = new Date(Number(last.slice(0, 4)), Number(last.slice(5, 7)), 0).getDate();
+    const period = await leaseApi.period({ from: `${yms[0]}-01`, to: `${last}-${pad(lastDay)}` });
+    period.months.filter((m) => m.id).forEach((m) => registered.add(m.yearMonth));
+  }
   const seen = new Set<string>();
   for (const r of rows) {
     if (r.status !== 'new') continue;
@@ -124,7 +126,10 @@ export async function runLeaseImport(
   let created = 0;
   for (const [i, r] of targets.entries()) {
     try {
-      await leaseApi.create({ yearMonth: r.yearMonth, rent: r.rent, maintenanceFee: r.maintenanceFee, electricity: r.electricity }, []);
+      await leaseApi.create(
+        { yearMonth: r.yearMonth, rent: r.rent, maintenanceFee: r.maintenanceFee, electricity: r.electricity, vat: r.vat, powerFund: r.powerFund },
+        [],
+      );
       created++;
     } catch (e) {
       failed.push({ row: r, message: e instanceof Error ? e.message : String(e) });

@@ -1,6 +1,8 @@
 import type { Ledger } from './ledger';
 import { money } from './format';
 
+const orMissing = (v: number | null) => (v === null ? '미입력' : money(v));
+
 /** 한글을 쓰려면 PDF 에 글꼴을 넣어야 한다. 용량이 커서 내려받을 때만 불러온다. */
 async function loadFont(): Promise<string> {
   const { default: url } = await import('pretendard/dist/public/static/alternative/Pretendard-Regular.ttf?url');
@@ -35,7 +37,7 @@ export async function downloadLedgerPdf(ledger: Ledger, opts: { title: string; c
         y,
         `${Number(m)}월분`,
         '',
-        `임차관리비 (임대료 ${money(r.l.rent)} / 관리비 ${money(r.l.maintenanceFee)} / 전기료 ${r.l.electricity ? money(r.l.electricity) : '미입력'})`,
+        `임차관리비 (임대료 ${money(r.l.rent)} / 관리비 ${money(r.l.maintenanceFee)} / 전기료 ${orMissing(r.l.electricity)} / 부가세 ${orMissing(r.l.vat)} / 전력기금 ${orMissing(r.l.powerFund)})`,
         '',
         '',
         money(r.l.total),

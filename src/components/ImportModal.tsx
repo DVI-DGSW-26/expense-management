@@ -60,9 +60,12 @@ export function ImportModal({
     const count = plan.rows.filter((r) => r.status === 'new').length;
     setProgress({ done: 0, total: count });
     try {
-      const r = await runImport(plan, accounts, (done, total) => setProgress({ done, total }));
+      const r = await runImport(plan, accounts);
       setResult(r);
-      toast(`경비 ${r.created}건을 등록했습니다.${r.failed.length ? ` ${r.failed.length}건은 실패했습니다.` : ''}`, r.failed.length ? 'error' : 'ok');
+      toast(
+        `경비 ${r.created}건을 등록했습니다.${r.duplicated ? ` ${r.duplicated}건은 이미 있어 건너뛰었습니다.` : ''}${r.failed.length ? ` ${r.failed.length}건은 실패했습니다.` : ''}`,
+        r.failed.length ? 'error' : 'ok',
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -170,7 +173,10 @@ export function ImportModal({
                     <tr key={r.line} className={r.status === 'new' ? undefined : 'dim'}>
                       <td className="num muted">{r.line}</td>
                       <td className="num nowrap">{r.expenseDate || '–'}</td>
-                      <td>{r.vendor}</td>
+                      <td>
+                        {r.vendor}
+                        {r.businessNumber && <div className="row-note num">{r.businessNumber}</div>}
+                      </td>
                       <td>{r.itemName}</td>
                       <td className="r">
                         <Amount value={r.supplyAmount} />
@@ -178,7 +184,7 @@ export function ImportModal({
                       <td className="r">
                         <Amount value={r.taxAmount} />
                       </td>
-                      <td className="r" title={r.totalMismatch ? '합계가 공급가액 + 세액과 다릅니다. 엑셀 값 그대로 저장합니다.' : undefined}>
+                      <td className="r" title={r.totalMismatch ? '합계가 공급가액 + 세액과 다릅니다. 합계는 공급가액 + 세액으로 저장됩니다.' : undefined}>
                         <Amount value={r.totalAmount} strong />
                         {r.totalMismatch && <span className="mismatch"> *</span>}
                       </td>
@@ -197,9 +203,9 @@ export function ImportModal({
 
             {progress && (
               <div className="progress" role="progressbar" aria-valuenow={progress.done} aria-valuemax={progress.total}>
-                <div style={{ width: `${(progress.done / Math.max(1, progress.total)) * 100}%` }} />
+                <div style={{ width: '100%' }} />
                 <span>
-                  {progress.done} / {progress.total}건 등록 중…
+                  {progress.total}건 등록 중…
                 </span>
               </div>
             )}
@@ -220,6 +226,7 @@ export function ImportModal({
           <>
             <div className="import-summary">
               <span className="pill pill-new">등록 완료 {result.created}건</span>
+              {result.duplicated > 0 && <span className="pill">이미 있어 건너뜀 {result.duplicated}건</span>}
               {result.failed.length > 0 && <span className="pill pill-error">실패 {result.failed.length}건</span>}
             </div>
             {result.failed.length > 0 && (

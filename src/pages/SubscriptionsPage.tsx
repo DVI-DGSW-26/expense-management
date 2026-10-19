@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { subscriptionApi } from '../api/endpoints';
-import type { Cycle, Subscription, SubscriptionFields, SubscriptionPatch } from '../api/types';
+import type { Currency, Cycle, Subscription, SubscriptionFields, SubscriptionPatch, TaxType } from '../api/types';
 import { AccountSelect } from '../components/accounts';
 import { PlusIcon } from '../components/icons';
 import { Amount, Field, LoadState, Modal, MoneyInput, RequiredNote, moneyText, useAction, useAsync } from '../components/ui';
@@ -12,6 +12,25 @@ const CYCLES: { value: Cycle; label: string }[] = [
   { value: 'SEMI_ANNUAL', label: '반년마다' },
   { value: 'YEARLY', label: '매년' },
 ];
+
+const CURRENCIES: { value: Currency; label: string }[] = [
+  { value: 'KRW', label: '원화 (KRW)' },
+  { value: 'USD', label: '미국 달러 (USD)' },
+  { value: 'EUR', label: '유로 (EUR)' },
+  { value: 'JPY', label: '엔 (JPY)' },
+  { value: 'GBP', label: '파운드 (GBP)' },
+  { value: 'CNY', label: '위안 (CNY)' },
+];
+
+const TAX_TYPES: { value: TaxType; label: string }[] = [
+  { value: 'NONE', label: '부가세 없음' },
+  { value: 'EXCLUSIVE', label: '부가세 별도 10%' },
+  { value: 'INCLUSIVE', label: '부가세 포함 10%' },
+];
+
+const isForeign = (s: Subscription) => !!s.currency && s.currency !== 'KRW';
+const foreignText = (currency: string, amount: number) =>
+  `${currency} ${amount.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}`;
 
 function statusOf(s: Subscription) {
   if (!s.active) return { label: '일시중지', cls: 'paused' };
@@ -50,9 +69,12 @@ export function SubscriptionsPage() {
   }
 
   const subs = list.data ?? [];
-  const monthly = subs
-    .filter((s) => s.active && s.nextChargeDate)
-    .reduce((sum, s) => sum + s.totalAmount / ({ MONTHLY: 1, QUARTERLY: 3, SEMI_ANNUAL: 6, YEARLY: 12 }[s.cycle] ?? 1), 0);
+  // 외화 구독은 결제일 환율로 정해지므로 원화 구독만 더한다
+  const charging = subs.filter((s) => s.active && s.nextChargeDate);
+  const monthly = charging
+    .filter((s) => !isForeign(s))
+    .reduce((sum, s) => sum + (s.totalAmount ?? 0) / ({ MONTHLY: 1, QUARTERLY: 3, SEMI_ANNUAL: 6, YEARLY: 12 }[s.cycle] ?? 1), 0);
+  const foreignCount = charging.filter(isForeign).length;
 
   return (
     <>
@@ -70,7 +92,8 @@ export function SubscriptionsPage() {
         결제일이 되면 매일 자동으로 경비가 만들어집니다.
         {subs.length > 0 && (
           <>
-            {' '}지금 결제 중인 구독은 한 달 평균 <strong className="num">{money(Math.round(monthly))}원</strong>입니다.
+            {' '}지금 결제 중인 구독은 한 달 평균 <strong className="num">{money(Math.round(monthly))}원</strong>입니다
+            {foreignCount > 0 && ` (외화 구독 ${foreignCount}건은 결제일 환율로 정해져 빠짐)`}.
           </>
         )}
       </p>
@@ -94,7 +117,7 @@ export function SubscriptionsPage() {
                 <th>구독</th>
                 <th>주기</th>
                 <th>계정</th>
-                <th className="r">회당 합계</th>
+                <th className="r">회당 금액</th>
                 <th>다음 결제</th>
                 <th>상태</th>
                 <th aria-label="작업" />
@@ -116,7 +139,14 @@ export function SubscriptionsPage() {
                     <td className="nowrap">{s.cycleLabel}</td>
                     <td className="nowrap">{s.debitAccountName}</td>
                     <td className="r">
-                      <Amount value={s.totalAmount} strong />
+                      {isForeign(s) && s.foreignAmount != null ? (
+                        <>
+                          <span className="num strong">{foreignText(s.currency, s.foreignAmount)}</span>
+                          {s.taxTypeLabel && <div className="sub-line">{s.taxTypeLabel}</div>}
+                        </>
+                      ) : (
+                        <Amount value={s.totalAmount} strong />
+                      )}
                     </td>
                     <td className="num nowrap">{s.nextChargeDate ?? '–'}</td>
                     <td className="nowrap">
@@ -181,11 +211,11 @@ function SubscriptionModal({ sub, onClose, onSaved }: { sub: Subscription | null
   const [name, setName] = useState(sub?.name ?? '');
   const [vendor, setVendor] = useState(sub?.vendor ?? '');
   const [itemName, setItemName] = useState(sub?.itemName ?? '');
+  const [currency, setCurrency] = useState<Currency>(sub?.currency ?? 'KRW');
   const [supply, setSupply] = useState(moneyText(sub?.supplyAmount));
   const [tax, setTax] = useState(moneyText(sub?.taxAmount));
-  const [total, setTotal] = useState(
-    sub && sub.totalAmount !== sub.supplyAmount + sub.taxAmount ? moneyText(sub.totalAmount) : '',
-  );
+  const [foreignAmount, setForeignAmount] = useState(sub?.foreignAmount != null ? String(sub.foreignAmount) : '');
+  const [taxType, setTaxType] = useState<TaxType>(sub?.taxType ?? 'NONE');
   const [accountId, setAccountId] = useState(sub ? String(sub.debitAccountId) : '');
   const [cycle, setCycle] = useState<Cycle>(sub?.cycle ?? 'MONTHLY');
   const [startDate, setStartDate] = useState(sub?.startDate ?? todayIso());
@@ -196,17 +226,19 @@ function SubscriptionModal({ sub, onClose, onSaved }: { sub: Subscription | null
   const taxN = parseMoney(tax) ?? 0;
   const autoTotal = supplyN !== null ? supplyN + taxN : null;
   const isPast = !sub && startDate < todayIso();
+  const foreign = currency !== 'KRW';
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (supplyN === null || !accountId) return;
+    const foreignN = Number(foreignAmount);
+    if (!accountId || (foreign ? !(foreignN > 0) : supplyN === null)) return;
     const fields: SubscriptionFields = {
       name: name.trim(),
       vendor: vendor.trim(),
       itemName: itemName.trim(),
-      supplyAmount: supplyN,
-      taxAmount: taxN,
-      totalAmount: parseMoney(total) ?? autoTotal ?? undefined,
+      currency,
+      // 원화는 공급가액·세액, 외화는 외화 금액·부가세 방식 (합계는 서버가 계산)
+      ...(foreign ? { foreignAmount: foreignN, taxType } : { supplyAmount: supplyN ?? 0, taxAmount: taxN }),
       debitAccountId: Number(accountId),
       cycle,
       startDate,
@@ -244,15 +276,54 @@ function SubscriptionModal({ sub, onClose, onSaved }: { sub: Subscription | null
         <Field label="품명" className="span-2" required>
           <input className="input" value={itemName} onChange={(e) => setItemName(e.target.value)} required />
         </Field>
-        <Field label="회당 공급가액" required>
-          <MoneyInput value={supply} onChange={setSupply} required />
+        <Field label="통화" className="span-2" required hint={foreign ? '결제일 직전 영업일 환율(매매기준율)로 원화 경비가 만들어집니다.' : undefined}>
+          <select className="input" value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}>
+            {CURRENCIES.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
         </Field>
-        <Field label="회당 세액">
-          <MoneyInput value={tax} onChange={setTax} placeholder="0" />
-        </Field>
-        <Field label="회당 합계" className="span-2" hint="비워 두면 공급가액 + 세액">
-          <MoneyInput value={total} onChange={setTotal} placeholder={autoTotal !== null ? money(autoTotal) : ''} />
-        </Field>
+        {foreign ? (
+          <>
+            <Field label={`회당 금액 (${currency})`} required>
+              <input
+                className="input num"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={foreignAmount}
+                onChange={(e) => setForeignAmount(e.target.value)}
+                placeholder="예: 25.00"
+                required
+              />
+            </Field>
+            <Field label="부가세" required>
+              <select className="input" value={taxType} onChange={(e) => setTaxType(e.target.value as TaxType)}>
+                {TAX_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </>
+        ) : (
+          <>
+            <Field label="회당 공급가액" required>
+              <MoneyInput value={supply} onChange={setSupply} required />
+            </Field>
+            <Field label="회당 세액">
+              <MoneyInput value={tax} onChange={setTax} placeholder="0" />
+            </Field>
+            <div className="field span-2">
+              <span className="field-label">회당 합계</span>
+              <span className="sum-readout num">{autoTotal !== null ? `${money(autoTotal)}원` : '–'}</span>
+            </div>
+          </>
+        )}
         <Field label="결제 주기" required>
           <select className="input" value={cycle} onChange={(e) => setCycle(e.target.value as Cycle)}>
             {CYCLES.map((c) => (
@@ -305,6 +376,7 @@ function ChargesModal({ sub, onClose }: { sub: Subscription; onClose: () => void
               <th className="r">공급가액</th>
               <th className="r">세액</th>
               <th className="r">합계</th>
+              {isForeign(sub) && <th className="r">외화 · 환율</th>}
             </tr>
           </thead>
           <tbody>
@@ -322,9 +394,19 @@ function ChargesModal({ sub, onClose }: { sub: Subscription; onClose: () => void
                     <td className="r">
                       <Amount value={c.totalAmount} strong />
                     </td>
+                    {isForeign(sub) && (
+                      <td className="r nowrap">
+                        {c.foreignAmount != null && <span className="num">{foreignText(sub.currency, c.foreignAmount)}</span>}
+                        {c.exchangeRate != null && (
+                          <div className="sub-line num" title={c.rateDate ? `${c.rateDate} 고시` : undefined}>
+                            {c.exchangeRate.toLocaleString('ko-KR')}원
+                          </div>
+                        )}
+                      </td>
+                    )}
                   </>
                 ) : (
-                  <td colSpan={3} className="r muted">
+                  <td colSpan={isForeign(sub) ? 4 : 3} className="r muted">
                     경비 삭제됨
                   </td>
                 )}

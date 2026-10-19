@@ -1,29 +1,28 @@
 import { useState, type FormEvent } from 'react';
 import { leaseApi } from '../api/endpoints';
-import type { LeaseCost, LeaseMonth } from '../api/types';
+import type { LeaseClearField, LeaseCost, LeaseCostFields, LeaseCostPatch, LeaseFixed } from '../api/types';
 import { Attachments, FilePicker } from '../components/Attachments';
 import { UploadIcon } from '../components/icons';
 import { LeaseImportModal } from '../components/LeaseImportModal';
 import { Amount, Field, LoadState, Modal, MoneyInput, RequiredNote, YearStepper, moneyText, useAction, useAsync } from '../components/ui';
 import { money, parseMoney, thisYear } from '../lib/format';
-import { fillLeaseMonths, fixedLease, setFixedLease, type FixedLease } from '../lib/leaseAuto';
 
 const pad = (n: number) => String(n).padStart(2, '0');
-
-/** 응답의 월 행에서 월 번호를 얻는다 (month 또는 yearMonth, 없으면 순서) */
-export function monthOf(m: LeaseMonth, index: number) {
-  if (m.month) return m.month;
-  if (m.yearMonth) return Number(m.yearMonth.slice(5, 7));
-  return index + 1;
-}
+const ymLabel = (ym: string) => `${Number(ym.slice(0, 4))}년 ${Number(ym.slice(5, 7))}월`;
 
 export type LeaseTarget = { id: number } | { yearMonth: string };
 
+/** 아직 입력하지 않은 값 (null) */
+export function Missing() {
+  return <span className="missing-value">미입력</span>;
+}
+
+const amountOrMissing = (v: number | null) => (v === null ? <Missing /> : <Amount value={v} />);
+
 export function LeasePage() {
   const [year, setYear] = useState(thisYear());
-  // 고정 금액으로 빈 달을 먼저 채운 뒤 조회한다
-  const table = useAsync(() => fillLeaseMonths().then(() => leaseApi.year(year)), [year]);
-  const fixed = useAsync(() => fixedLease(), []);
+  const table = useAsync(() => leaseApi.period({ year }), [year]);
+  const fixed = useAsync(() => leaseApi.fixed(), []);
   const [editing, setEditing] = useState<LeaseTarget | null>(null);
   const [settingFixed, setSettingFixed] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -31,8 +30,10 @@ export function LeasePage() {
   const now = new Date();
   const currentYm = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
   const f = fixed.data;
-  // 임대를 시작한 달(처음 등록된 달) 이후 이번 달까지 비어 있으면 미등록으로 표시한다
-  const isMissing = (ym: string) => !!f && ym > f.firstYm && ym <= currentYm;
+  // 이 해에 처음 등록된 달 이후 이번 달까지 비어 있으면 미등록으로 표시한다 (임대 시작 전 달은 조용히)
+  const firstYm = data?.months.find((m) => m.id)?.yearMonth;
+  const isMissing = (ym: string) => !!firstYm && ym > firstYm && ym <= currentYm;
+  const reload = () => (table.reload(), fixed.reload());
 
   return (
     <>
@@ -46,9 +47,11 @@ export function LeasePage() {
           <YearStepper year={year} onChange={setYear} />
         </div>
       </header>
-      <p className="page-lede">임대료·관리비는 매달 같은 금액으로 자동 등록됩니다. 전기료만 달마다 입력하세요.</p>
+      <p className="page-lede">
+        임대료·관리비는 고정 금액으로 매달 자동 등록됩니다. 전기료·부가세·전력기금은 청구서를 보고 달마다 입력하세요.
+      </p>
 
-      {!fixed.loading && (
+      {!fixed.loading && !fixed.error && (
         <section className="fixed-card" aria-label="매달 고정 금액">
           {f ? (
             <>
@@ -63,9 +66,14 @@ export function LeasePage() {
                 </div>
               </dl>
               <p className="fixed-note">
-                {f.rent === 0 && f.maintenanceFee === 0
-                  ? '고정 금액이 0원이라 자동 등록을 멈췄습니다.'
-                  : `${ymLabel(f.since)}부터 매달 자동 등록 중입니다.`}
+                {f.active ? (
+                  <>
+                    {ymLabel(f.startMonth)}부터 매달 자동 등록 중입니다.
+                    {f.nextMonth && <> 다음 등록: {ymLabel(f.nextMonth)}</>}
+                  </>
+                ) : (
+                  '자동 등록이 꺼져 있습니다.'
+                )}
               </p>
               <button className="btn btn-soft" onClick={() => setSettingFixed(true)}>
                 고정 금액 변경
@@ -73,9 +81,7 @@ export function LeasePage() {
             </>
           ) : (
             <>
-              <p className="fixed-note">
-                임대료·관리비를 한 번 정해 두면 매달 자동으로 등록됩니다.
-              </p>
+              <p className="fixed-note">임대료·관리비를 한 번 정해 두면 매달 자동으로 등록됩니다.</p>
               <button className="btn btn-primary" onClick={() => setSettingFixed(true)}>
                 고정 금액 정하기
               </button>
@@ -95,19 +101,21 @@ export function LeasePage() {
                 <th className="r">임대료</th>
                 <th className="r">관리비</th>
                 <th className="r">전기료</th>
+                <th className="r">부가세</th>
+                <th className="r">전력기금</th>
                 <th className="r">합계</th>
               </tr>
             </thead>
             <tbody>
-              {data.months.map((m, i) => {
-                const mm = monthOf(m, i);
-                const ym = `${data.year}-${pad(mm)}`;
+              {data.months.map((m) => {
+                const ym = m.yearMonth;
+                const mm = Number(ym.slice(5, 7));
                 const open = () => setEditing(m.id ? { id: m.id } : { yearMonth: ym });
                 if (!m.id) {
                   return (
-                    <tr key={mm} className={`empty-row${ym === currentYm ? ' current' : ''}${isMissing(ym) ? ' missing' : ''}`} onClick={open}>
+                    <tr key={ym} className={`empty-row${ym === currentYm ? ' current' : ''}${isMissing(ym) ? ' missing' : ''}`} onClick={open}>
                       <td className="nowrap">{mm}월</td>
-                      <td colSpan={4}>
+                      <td colSpan={6}>
                         <button className="row-link quiet" onClick={open}>
                           {isMissing(ym) ? '미등록, 눌러서 등록' : '등록'}
                         </button>
@@ -116,11 +124,12 @@ export function LeasePage() {
                   );
                 }
                 return (
-                  <tr key={mm} className={`clickable${ym === currentYm ? ' current' : ''}`} onClick={open}>
+                  <tr key={ym} className={`clickable${ym === currentYm ? ' current' : ''}`} onClick={open}>
                     <td className="nowrap">
                       <button className="row-link" onClick={open}>
                         {mm}월
                       </button>
+                      {m.autoCreated && <span className="tag">자동</span>}
                     </td>
                     <td className="r">
                       <Amount value={m.rent} />
@@ -128,9 +137,9 @@ export function LeasePage() {
                     <td className="r">
                       <Amount value={m.maintenanceFee} />
                     </td>
-                    <td className="r">
-                      {m.electricity ? <Amount value={m.electricity} /> : <span className="missing-value">미입력</span>}
-                    </td>
+                    <td className="r">{amountOrMissing(m.electricity)}</td>
+                    <td className="r">{amountOrMissing(m.vat)}</td>
+                    <td className="r">{amountOrMissing(m.powerFund)}</td>
                     <td className="r">
                       <Amount value={m.total} strong />
                     </td>
@@ -142,16 +151,22 @@ export function LeasePage() {
               <tr>
                 <th>연간</th>
                 <td className="r">
-                  <Amount value={data.yearTotal.rent} />
+                  <Amount value={data.total.rent} />
                 </td>
                 <td className="r">
-                  <Amount value={data.yearTotal.maintenanceFee} />
+                  <Amount value={data.total.maintenanceFee} />
                 </td>
                 <td className="r">
-                  <Amount value={data.yearTotal.electricity} />
+                  <Amount value={data.total.electricity} />
                 </td>
                 <td className="r">
-                  <Amount value={data.yearTotal.total} strong />
+                  <Amount value={data.total.vat} />
+                </td>
+                <td className="r">
+                  <Amount value={data.total.powerFund} />
+                </td>
+                <td className="r">
+                  <Amount value={data.total.total} strong />
                 </td>
               </tr>
             </tfoot>
@@ -159,41 +174,30 @@ export function LeasePage() {
         </div>
       )}
 
-      {editing && (
-        <LeaseModal
-          target={editing}
-          defaults={f ?? undefined}
-          onClose={() => setEditing(null)}
-          onSaved={() => (table.reload(), fixed.reload())}
-        />
-      )}
-      {importing && <LeaseImportModal onClose={() => setImporting(false)} onDone={() => (table.reload(), fixed.reload())} />}
-      {settingFixed && (
-        <FixedLeaseModal
-          initial={f}
-          onClose={() => setSettingFixed(false)}
-          onSaved={() => (table.reload(), fixed.reload())}
-        />
-      )}
+      {editing && <LeaseModal target={editing} defaults={f ?? undefined} onClose={() => setEditing(null)} onSaved={reload} />}
+      {importing && <LeaseImportModal onClose={() => setImporting(false)} onDone={reload} />}
+      {settingFixed && <FixedLeaseModal initial={f ?? null} onClose={() => setSettingFixed(false)} onSaved={reload} />}
     </>
   );
 }
 
-const ymLabel = (ym: string) => `${Number(ym.slice(0, 4))}년 ${Number(ym.slice(5, 7))}월`;
-
-/** 매달 같은 임대료·관리비를 정한다. 적용 시작 월부터 등록된 달을 고치고, 이번 달까지 빈 달을 등록한다. */
-function FixedLeaseModal({ initial, onClose, onSaved }: { initial: FixedLease | null; onClose: () => void; onSaved: () => void }) {
+/** 매달 같은 임대료·관리비. 서버가 시작 월부터 매달 그달 임차관리비를 만든다. */
+function FixedLeaseModal({ initial, onClose, onSaved }: { initial: LeaseFixed | null; onClose: () => void; onSaved: () => void }) {
   const now = new Date();
-  const [from, setFrom] = useState(`${now.getFullYear()}-${pad(now.getMonth() + 1)}`);
+  const [startMonth, setStartMonth] = useState(`${now.getFullYear()}-${pad(now.getMonth() + 1)}`);
   const [rent, setRent] = useState(moneyText(initial?.rent));
   const [fee, setFee] = useState(moneyText(initial?.maintenanceFee));
+  const [active, setActive] = useState(initial?.active ?? true);
   const [busy, setBusy] = useState(false);
   const run = useAction();
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const ok = await run(() => setFixedLease(from, parseMoney(rent) ?? 0, parseMoney(fee) ?? 0), '고정 금액을 저장했습니다.');
+    const ok = await run(
+      () => leaseApi.setFixed({ rent: parseMoney(rent) ?? 0, maintenanceFee: parseMoney(fee) ?? 0, startMonth, active }),
+      '고정 금액을 저장했습니다.',
+    );
     setBusy(false);
     if (ok) {
       onSaved();
@@ -211,15 +215,14 @@ function FixedLeaseModal({ initial, onClose, onSaved }: { initial: FixedLease | 
         <Field label="관리비" required>
           <MoneyInput value={fee} onChange={setFee} required />
         </Field>
-        <Field
-          label="적용 시작 월"
-          className="span-2"
-          required
-          hint="이 달부터 등록된 달의 임대료·관리비를 바꾸고, 이번 달까지 빈 달은 새로 등록합니다. 전기료는 그대로 둡니다."
-        >
-          <input className="input" type="month" value={from} onChange={(e) => setFrom(e.target.value)} required />
+        <Field label="적용 시작 월" className="span-2" required hint="이 달부터 이 금액으로 매달 자동 등록합니다.">
+          <input className="input" type="month" value={startMonth} onChange={(e) => setStartMonth(e.target.value)} required />
         </Field>
-        <p className="note span-2">0원으로 정하면 다음 달부터 자동 등록을 멈춥니다.</p>
+        <label className="check span-2">
+          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+          매달 자동 등록
+          <span className="muted">끄면 더 이상 자동으로 만들지 않습니다.</span>
+        </label>
         <div className="form-actions span-2">
           <button type="button" className="btn" onClick={onClose}>
             취소
@@ -250,7 +253,7 @@ export function LeaseModal({
   const run = useAction();
   const lc = detail.data?.leaseCost;
   const ym = lc?.yearMonth ?? ('yearMonth' in target ? target.yearMonth : '');
-  const title = ym ? `${Number(ym.slice(0, 4))}년 ${Number(ym.slice(5, 7))}월 임차관리비` : '임차관리비';
+  const title = ym ? `${ymLabel(ym)} 임차관리비` : '임차관리비';
 
   async function remove() {
     if (!id || !confirm('이 달의 임차관리비를 삭제할까요? 첨부파일도 함께 삭제됩니다.')) return;
@@ -258,6 +261,24 @@ export function LeaseModal({
       onSaved();
       onClose();
     }
+  }
+
+  /** 수정: 비운 칸은 clear 로 '미입력'으로 되돌린다 */
+  function toPatch(fields: LeaseCostFields, before: LeaseCost): LeaseCostPatch {
+    const clear: LeaseClearField[] = [];
+    const patch: LeaseCostPatch = { yearMonth: fields.yearMonth, rent: fields.rent, maintenanceFee: fields.maintenanceFee };
+    const optional = [
+      ['electricity', 'ELECTRICITY'],
+      ['vat', 'VAT'],
+      ['powerFund', 'POWER_FUND'],
+    ] as const;
+    for (const [key, code] of optional) {
+      const v = fields[key];
+      if (v !== null) patch[key] = v;
+      else if (before[key] !== null) clear.push(code);
+    }
+    if (clear.length) patch.clear = clear;
+    return patch;
   }
 
   return (
@@ -272,9 +293,10 @@ export function LeaseModal({
             yearMonth={ym}
             onDelete={id ? remove : undefined}
             onSubmit={async (fields, files) => {
-              const ok = id
-                ? await run(() => leaseApi.update(id, fields), '저장했습니다.')
-                : await run(() => leaseApi.create(fields, files), '등록했습니다.');
+              const ok =
+                id && lc
+                  ? await run(() => leaseApi.update(id, toPatch(fields, lc)), '저장했습니다.')
+                  : await run(() => leaseApi.create(fields, files), '등록했습니다.');
               if (ok) {
                 onSaved();
                 onClose();
@@ -283,11 +305,7 @@ export function LeaseModal({
           />
           {id && detail.data && (
             <aside className="modal-side">
-              <Attachments
-                items={detail.data.attachments}
-                onAdd={(files) => leaseApi.addFiles(id, files)}
-                onChange={detail.reload}
-              />
+              <Attachments items={detail.data.attachments} onAdd={(files) => leaseApi.addFiles(id, files)} onChange={detail.reload} />
             </aside>
           )}
         </div>
@@ -306,23 +324,33 @@ function LeaseForm({
   initial?: LeaseCost;
   defaults?: { rent: number; maintenanceFee: number };
   yearMonth: string;
-  onSubmit: (f: { yearMonth: string; rent: number; maintenanceFee: number; electricity: number }, files: File[]) => Promise<void>;
+  onSubmit: (f: LeaseCostFields, files: File[]) => Promise<void>;
   onDelete?: () => void;
 }) {
   const [ym, setYm] = useState(yearMonth);
   const [rent, setRent] = useState(moneyText(initial?.rent ?? defaults?.rent));
   const [fee, setFee] = useState(moneyText(initial?.maintenanceFee ?? defaults?.maintenanceFee));
-  // 자동 등록된 달은 전기료가 0원(미입력)이므로 빈칸으로 둔다
-  const [elec, setElec] = useState(initial?.electricity ? moneyText(initial.electricity) : '');
+  const [elec, setElec] = useState(moneyText(initial?.electricity));
+  const [vat, setVat] = useState(moneyText(initial?.vat));
+  const [fund, setFund] = useState(moneyText(initial?.powerFund));
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
-  const sum = (parseMoney(rent) ?? 0) + (parseMoney(fee) ?? 0) + (parseMoney(elec) ?? 0);
+  // 부가세는 공급가 계(임대료 + 관리비 + 전기료)의 10%
+  const supply = (parseMoney(rent) ?? 0) + (parseMoney(fee) ?? 0) + (parseMoney(elec) ?? 0);
+  const sum = supply + (parseMoney(vat) ?? 0) + (parseMoney(fund) ?? 0);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     await onSubmit(
-      { yearMonth: ym, rent: parseMoney(rent) ?? 0, maintenanceFee: parseMoney(fee) ?? 0, electricity: parseMoney(elec) ?? 0 },
+      {
+        yearMonth: ym,
+        rent: parseMoney(rent) ?? 0,
+        maintenanceFee: parseMoney(fee) ?? 0,
+        electricity: parseMoney(elec),
+        vat: parseMoney(vat),
+        powerFund: parseMoney(fund),
+      },
       files,
     );
     setBusy(false);
@@ -340,11 +368,24 @@ function LeaseForm({
       <Field label="관리비" required hint="매달 고정 금액">
         <MoneyInput value={fee} onChange={setFee} required />
       </Field>
-      <Field label="전기료" required hint="달마다 직접 입력">
-        <MoneyInput value={elec} onChange={setElec} placeholder="이번 달 전기료" required />
+      <Field label="전기료" hint="청구서를 보고 입력. 비우면 미입력">
+        <MoneyInput value={elec} onChange={setElec} placeholder="미입력" />
+      </Field>
+      <Field
+        label="부가세"
+        hint={
+          <button type="button" className="link" onClick={() => setVat(money(Math.floor(supply / 10)))}>
+            공급가 계의 10% ({money(Math.floor(supply / 10))}원) 넣기
+          </button>
+        }
+      >
+        <MoneyInput value={vat} onChange={setVat} placeholder="미입력" />
+      </Field>
+      <Field label="전력기금" hint="수도광열비로 집계됩니다">
+        <MoneyInput value={fund} onChange={setFund} placeholder="미입력" />
       </Field>
       <div className="field">
-        <span className="field-label">합계</span>
+        <span className="field-label">청구 합계</span>
         <span className="sum-readout num">{money(sum)}원</span>
       </div>
       {!initial && (

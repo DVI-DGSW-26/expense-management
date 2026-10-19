@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { summaryApi } from '../api/endpoints';
-import type { SummaryMonth } from '../api/types';
+import type { SummaryAccount, SummaryMonth } from '../api/types';
 import { Amount, LoadState, YearStepper, useAsync } from '../components/ui';
 import { money, moneyShort, thisYear } from '../lib/format';
 
@@ -14,7 +14,7 @@ const SERIES = [
 
 export function SummaryPage() {
   const [year, setYear] = useState(thisYear());
-  const summary = useAsync(() => summaryApi.get(year), [year]);
+  const summary = useAsync(() => summaryApi.get({ year }), [year]);
   const s = summary.data;
 
   return (
@@ -28,10 +28,10 @@ export function SummaryPage() {
 
       {s && (
         <>
-          <section className="year-total" aria-label={`${s.year}년 합계`}>
-            <p className="year-total-label">{s.year}년 사무실 지출</p>
+          <section className="year-total" aria-label={`${year}년 합계`}>
+            <p className="year-total-label">{year}년 사무실 지출</p>
             <p className="year-total-value num">
-              {money(s.yearTotal.total)}
+              {money(s.total.total)}
               <span>원</span>
             </p>
             <ul className="legend">
@@ -39,7 +39,7 @@ export function SummaryPage() {
                 <li key={x.key}>
                   <i style={{ background: x.color }} />
                   {x.label}
-                  <span className="num">{money(s.yearTotal[x.key])}</span>
+                  <span className="num">{money(s.total[x.key])}</span>
                 </li>
               ))}
             </ul>
@@ -75,10 +75,10 @@ export function SummaryPage() {
                   <tfoot>
                     <tr>
                       <th>연간</th>
-                      <td className="r"><Amount value={s.yearTotal.manual} /></td>
-                      <td className="r"><Amount value={s.yearTotal.subscription} /></td>
-                      <td className="r"><Amount value={s.yearTotal.lease} /></td>
-                      <td className="r"><Amount value={s.yearTotal.total} strong /></td>
+                      <td className="r"><Amount value={s.total.manual} /></td>
+                      <td className="r"><Amount value={s.total.subscription} /></td>
+                      <td className="r"><Amount value={s.total.lease} /></td>
+                      <td className="r"><Amount value={s.total.total} strong /></td>
                     </tr>
                   </tfoot>
                 </table>
@@ -86,12 +86,15 @@ export function SummaryPage() {
             </section>
 
             <section>
-              <h2 className="section-title">차변계정별 경비</h2>
-              <p className="section-note">직접 등록 경비와 구독 결제분의 합계입니다. 임차관리비는 계정이 없어 빠집니다.</p>
+              <h2 className="section-title">차변계정별 지출</h2>
+              <p className="section-note">
+                경비(직접 등록·구독)와 임차관리비의 합계입니다. 임차관리비는 임대료·관리비·전기료·부가세가 지급임차료, 전력기금이 수도광열비로
+                들어갑니다.
+              </p>
               {s.byDebitAccount.length === 0 ? (
                 <p className="muted">이 해에 등록된 경비가 없습니다.</p>
               ) : (
-                <AccountBars rows={s.byDebitAccount} year={s.year} />
+                <AccountBars rows={s.byDebitAccount} year={year} />
               )}
             </section>
           </div>
@@ -154,17 +157,23 @@ function niceStep(x: number) {
   return ([1, 2, 5, 10].find((k) => k * p >= x) ?? 10) * p;
 }
 
-function AccountBars({ rows, year }: { rows: { debitAccountId: number; debitAccountName: string; count: number; totalAmount: number }[]; year: number }) {
+function AccountBars({ rows, year }: { rows: SummaryAccount[]; year: number }) {
   const sorted = [...rows].sort((a, b) => b.totalAmount - a.totalAmount);
   const max = Math.max(1, ...sorted.map((r) => r.totalAmount));
   return (
     <ul className="account-bars">
       {sorted.map((r) => (
-        <li key={r.debitAccountId}>
-          <Link to={`/expenses?year=${year}&account=${r.debitAccountId}`} className="account-bar-name">
-            {r.debitAccountName}
-          </Link>
-          <span className="muted num">{r.count}건</span>
+        <li key={r.debitAccountId ?? r.debitAccountName}>
+          {r.debitAccountId ? (
+            <Link to={`/expenses?year=${year}&account=${r.debitAccountId}`} className="account-bar-name">
+              {r.debitAccountName}
+            </Link>
+          ) : (
+            <span className="account-bar-name">{r.debitAccountName}</span>
+          )}
+          <span className="muted num" title={r.fromLease ? `임차관리비 ${money(r.fromLease)}원 포함` : undefined}>
+            {r.count}건{r.fromLease ? ' · 임차관리비 포함' : ''}
+          </span>
           <span className="num strong">{money(r.totalAmount)}</span>
           <div className="account-bar-track" aria-hidden>
             <div style={{ width: `${Math.max(0, (r.totalAmount / max) * 100)}%` }} />
