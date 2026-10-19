@@ -63,7 +63,7 @@ export function SummaryPage() {
                   </thead>
                   <tbody>
                     {s.months.map((m) => (
-                      <tr key={m.month}>
+                      <tr key={m.yearMonth ?? m.month}>
                         <td>{m.month}월</td>
                         <td className="r"><Amount value={m.manual} /></td>
                         <td className="r"><Amount value={m.subscription} /></td>
@@ -120,7 +120,7 @@ function MonthChart({ months }: { months: SummaryMonth[] }) {
           ))}
         </div>
         {months.map((m) => (
-          <div className="chart-col" key={m.month} tabIndex={0} aria-label={`${m.month}월 합계 ${money(m.total)}원`}>
+          <div className="chart-col" key={m.yearMonth ?? m.month} tabIndex={0} aria-label={`${m.month}월 합계 ${money(m.total)}원`}>
             <div className="chart-stack">
               {SERIES.map((x) =>
                 m[x.key] > 0 ? (
