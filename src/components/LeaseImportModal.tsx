@@ -5,7 +5,8 @@ import { readXlsx } from '../lib/xlsx';
 import { Amount, Modal, useToast } from './ui';
 
 const STATUS_LABEL: Record<LeaseImportRow['status'], string> = {
-  new: '등록',
+  new: '새로 등록',
+  fill: '빈 항목 채움',
   duplicate: '건너뜀',
   error: '오류',
 };
@@ -42,11 +43,14 @@ export function LeaseImportModal({ onClose, onDone }: { onClose: () => void; onD
 
   async function start() {
     if (!plan) return;
-    setProgress({ done: 0, total: plan.rows.filter((r) => r.status === 'new').length });
+    setProgress({ done: 0, total: todo });
     try {
       const r = await runLeaseImport(plan, (done, total) => setProgress({ done, total }));
       setResult(r);
-      toast(`임차관리비 ${r.created}개월을 등록했습니다.${r.failed.length ? ` ${r.failed.length}건은 실패했습니다.` : ''}`, r.failed.length ? 'error' : 'ok');
+      toast(
+        [r.created && `${r.created}개월 등록`, r.filled && `${r.filled}개월 빈 항목 채움`, r.failed.length && `${r.failed.length}건 실패`].filter(Boolean).join(', ') + '했습니다.',
+        r.failed.length ? 'error' : 'ok',
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -57,13 +61,14 @@ export function LeaseImportModal({ onClose, onDone }: { onClose: () => void; onD
 
   const count = (s: LeaseImportRow['status']) => plan?.rows.filter((r) => r.status === s).length ?? 0;
   const busy = reading || progress !== null;
+  const todo = count('new') + count('fill');
 
   return (
     <Modal title="엑셀로 임차관리비 가져오기" onClose={busy ? () => {} : onClose} wide>
       <div className="stack">
         <p className="import-help">
-          머리글에 <b>날짜 · 청구월 · 임대료 · 관리비 · 전기료 · VAT · 전력기금</b>이 있는 엑셀(.xlsx)을 고르세요. 한 줄이 한 달이며, 이미 등록된 달은
-          건너뜁니다. VAT·전력기금도 함께 저장되고, 빈칸은 '미입력'으로 등록됩니다.
+          머리글에 <b>날짜 · 청구월 · 임대료 · 관리비 · 전기료 · VAT · 전력기금</b>이 있는 엑셀(.xlsx)을 고르세요. 한 줄이 한 달이며, 서버가 자동
+          등록한 달은 엑셀 값으로 빈 항목을 채우고, 직접 등록된 달은 건너뜁니다. VAT·전력기금도 함께 저장되고, 빈칸은 '미입력'으로 등록됩니다.
         </p>
 
         {!result && (
@@ -83,8 +88,9 @@ export function LeaseImportModal({ onClose, onDone }: { onClose: () => void; onD
         {plan && !result && (
           <>
             <div className="import-summary">
-              <span className="pill pill-new">등록 {count('new')}개월</span>
-              {count('duplicate') > 0 && <span className="pill">이미 있어 건너뜀 {count('duplicate')}개월</span>}
+              <span className="pill pill-new">새로 등록 {count('new')}개월</span>
+              {count('fill') > 0 && <span className="pill pill-fill">빈 항목 채움 {count('fill')}개월</span>}
+              {count('duplicate') > 0 && <span className="pill">건너뜀 {count('duplicate')}개월</span>}
               {count('error') > 0 && <span className="pill pill-error">오류 {count('error')}건</span>}
               <span className="muted">'{plan.sheetName}' 시트</span>
             </div>
@@ -141,10 +147,10 @@ export function LeaseImportModal({ onClose, onDone }: { onClose: () => void; onD
 
             <div className="form-actions">
               <button className="btn" onClick={onClose} disabled={busy}>
-                {count('new') === 0 ? '닫기' : '취소'}
+                {todo === 0 ? '닫기' : '취소'}
               </button>
-              <button className="btn btn-primary" onClick={start} disabled={busy || count('new') === 0}>
-                {count('new') === 0 ? '등록할 달 없음' : `${count('new')}개월 등록`}
+              <button className="btn btn-primary" onClick={start} disabled={busy || todo === 0}>
+                {todo === 0 ? '가져올 달 없음' : `${todo}개월 가져오기`}
               </button>
             </div>
           </>
@@ -153,7 +159,8 @@ export function LeaseImportModal({ onClose, onDone }: { onClose: () => void; onD
         {result && (
           <>
             <div className="import-summary">
-              <span className="pill pill-new">등록 완료 {result.created}개월</span>
+              <span className="pill pill-new">새로 등록 {result.created}개월</span>
+              {result.filled > 0 && <span className="pill pill-fill">빈 항목 채움 {result.filled}개월</span>}
               {result.failed.length > 0 && <span className="pill pill-error">실패 {result.failed.length}건</span>}
             </div>
             {result.failed.length > 0 && (

@@ -1,4 +1,5 @@
 import { leaseApi } from '../api/endpoints';
+import type { LeaseCostPatch, LeaseMonthRow } from '../api/types';
 import { parseAmount, parseDate } from './expenseImport';
 import type { Cell, Sheet } from './xlsx';
 
@@ -14,8 +15,14 @@ export interface LeaseImportRow {
   powerFund: number | null;
   /** 엑셀의 청구 합계 (미리보기에서 비교용) */
   billTotal: number | null;
-  status: 'new' | 'duplicate' | 'error';
+  /**
+   * new: 새로 등록 / fill: 서버가 자동 등록한 달의 빈 항목 채움 /
+   * duplicate: 사람이 등록한 달이라 건너뜀 / error: 형식 오류
+   */
+  status: 'new' | 'fill' | 'duplicate' | 'error';
   problem?: string;
+  /** fill 일 때 고칠 달과 보낼 값 */
+  fill?: { id: number; patch: LeaseCostPatch; changes: string[] };
 }
 
 export interface LeaseImportPlan {
@@ -93,48 +100,87 @@ export async function planLeaseImport(sheets: Sheet[]): Promise<LeaseImportPlan>
   }
   if (rows.length === 0) throw new Error(`'${sheet.name}' 시트에 가져올 임차관리비가 없습니다.`);
 
-  // 이미 등록된 달은 건너뛴다 (API 가 같은 달을 409 로 막는다)
+  // 이미 있는 달: 서버가 자동 등록한 달은 엑셀 값으로 채우고, 사람이 등록한 달은 건너뛴다
   const yms = rows.map((r) => r.yearMonth).filter(Boolean).sort();
-  const registered = new Set<string>();
+  const registered = new Map<string, LeaseMonthRow>();
   if (yms.length) {
     const last = yms[yms.length - 1];
     const lastDay = new Date(Number(last.slice(0, 4)), Number(last.slice(5, 7)), 0).getDate();
     const period = await leaseApi.period({ from: `${yms[0]}-01`, to: `${last}-${pad(lastDay)}` });
-    period.months.filter((m) => m.id).forEach((m) => registered.add(m.yearMonth));
+    period.months.filter((m) => m.id).forEach((m) => registered.set(m.yearMonth, m));
   }
   const seen = new Set<string>();
   for (const r of rows) {
     if (r.status !== 'new') continue;
-    if (registered.has(r.yearMonth)) {
-      r.status = 'duplicate';
-      r.problem = '이미 등록된 달';
-    } else if (seen.has(r.yearMonth)) {
+    const existing = registered.get(r.yearMonth);
+    if (seen.has(r.yearMonth)) {
       r.status = 'duplicate';
       r.problem = '엑셀 안에 같은 달이 또 있음';
+    } else if (existing && !existing.autoCreated) {
+      r.status = 'duplicate';
+      r.problem = '직접 등록된 달';
+    } else if (existing) {
+      const fill = fillPatch(existing, r);
+      if (fill.changes.length) {
+        r.status = 'fill';
+        r.fill = fill;
+        r.problem = `자동 등록된 달: ${fill.changes.join('·')} 채움`;
+      } else {
+        r.status = 'duplicate';
+        r.problem = '자동 등록된 달, 엑셀과 값이 같음';
+      }
     }
     seen.add(r.yearMonth);
   }
   return { sheetName: sheet.name, rows };
 }
 
+/**
+ * 자동 등록된 달에 보낼 값: 엑셀에 있는 전기료·VAT·전력기금과, 엑셀과 다른 임대료·관리비.
+ * 서버 값과 같은 항목은 보내지 않는다.
+ */
+function fillPatch(m: LeaseMonthRow, r: LeaseImportRow): { id: number; patch: LeaseCostPatch; changes: string[] } {
+  const patch: LeaseCostPatch = {};
+  const changes: string[] = [];
+  const fields = [
+    ['rent', '임대료', r.rent, m.rent],
+    ['maintenanceFee', '관리비', r.maintenanceFee, m.maintenanceFee],
+    ['electricity', '전기료', r.electricity, m.electricity],
+    ['vat', 'VAT', r.vat, m.vat],
+    ['powerFund', '전력기금', r.powerFund, m.powerFund],
+  ] as const;
+  for (const [key, label, excel, server] of fields) {
+    if (excel === null || excel === server) continue;
+    patch[key] = excel;
+    changes.push(label);
+  }
+  return { id: m.id!, patch, changes };
+}
+
 export async function runLeaseImport(
   plan: LeaseImportPlan,
   onProgress: (done: number, total: number) => void,
-): Promise<{ created: number; failed: { row: LeaseImportRow; message: string }[] }> {
-  const targets = plan.rows.filter((r) => r.status === 'new');
+): Promise<{ created: number; filled: number; failed: { row: LeaseImportRow; message: string }[] }> {
+  const targets = plan.rows.filter((r) => r.status === 'new' || r.status === 'fill');
   const failed: { row: LeaseImportRow; message: string }[] = [];
   let created = 0;
+  let filled = 0;
   for (const [i, r] of targets.entries()) {
     try {
-      await leaseApi.create(
-        { yearMonth: r.yearMonth, rent: r.rent, maintenanceFee: r.maintenanceFee, electricity: r.electricity, vat: r.vat, powerFund: r.powerFund },
-        [],
-      );
-      created++;
+      if (r.status === 'fill' && r.fill) {
+        await leaseApi.update(r.fill.id, r.fill.patch);
+        filled++;
+      } else {
+        await leaseApi.create(
+          { yearMonth: r.yearMonth, rent: r.rent, maintenanceFee: r.maintenanceFee, electricity: r.electricity, vat: r.vat, powerFund: r.powerFund },
+          [],
+        );
+        created++;
+      }
     } catch (e) {
       failed.push({ row: r, message: e instanceof Error ? e.message : String(e) });
     }
     onProgress(i + 1, targets.length);
   }
-  return { created, failed };
+  return { created, filled, failed };
 }

@@ -1659,6 +1659,11 @@ tr.clickable:hover .attach-add {
   background: var(--neg-soft);
   color: var(--neg);
 }
+/* 자동 등록된 달의 빈 항목 채움 */
+.pill-fill {
+  background: color-mix(in srgb, var(--series-sub) 14%, transparent);
+  color: var(--series-sub);
+}
 .note p {
   margin: 0;
 }
