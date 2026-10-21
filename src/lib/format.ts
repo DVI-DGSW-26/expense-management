@@ -27,11 +27,20 @@ export function bytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
-/** "2026-10-14" → "10.14" */
+/** "2026-07-09" → "0709" */
 export function shortDate(d: string | null | undefined): string {
   if (!d) return '–';
   const [, m, day] = d.split('-');
-  return `${Number(m)}.${Number(day)}`;
+  return `${m}${day}`;
+}
+
+/** 품명에 붙어 온 # 표시를 뗀다 */
+export const cleanItem = (s: string) => s.replace(/#/g, '').trim();
+
+/** 1·2·5 × 10ⁿ 중 x 이상인 가장 작은 값 — 차트 눈금 간격용 */
+export function niceStep(x: number) {
+  const p = 10 ** Math.floor(Math.log10(x));
+  return ([1, 2, 5, 10].find((k) => k * p >= x) ?? 10) * p;
 }
 
 export function todayIso(): string {
@@ -41,3 +50,6 @@ export function todayIso(): string {
 }
 
 export const thisYear = () => new Date().getFullYear();
+
+/** 조회할 수 있는 첫 해 */
+export const FIRST_YEAR = 2026;

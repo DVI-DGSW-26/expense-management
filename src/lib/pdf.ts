@@ -1,5 +1,5 @@
 import type { Ledger } from './ledger';
-import { money } from './format';
+import { cleanItem, money, shortDate } from './format';
 
 const orMissing = (v: number | null) => (v === null ? '미입력' : money(v));
 
@@ -42,18 +42,15 @@ export async function downloadLedgerPdf(ledger: Ledger, opts: { title: string; c
         '',
         money(r.l.total),
         '',
-        '',
+        r.l.attachmentCount ? `${r.l.attachmentCount}개` : '',
       ];
     }
     const e = r.e;
-    const [y, m, d] = e.expenseDate.split('-');
     return [
-      y,
-      `${Number(m)}.${Number(d)}`,
+      e.expenseDate.slice(0, 4),
+      shortDate(e.expenseDate),
       e.vendor,
-      e.itemName + (e.source === 'SUBSCRIPTION' ? ' (구독)' : ''),
-      money(e.supplyAmount),
-      money(e.taxAmount),
+      cleanItem(e.itemName) + (e.source === 'SUBSCRIPTION' ? ' (구독)' : ''),
       money(e.totalAmount),
       e.debitAccountName,
       e.attachmentCount ? `${e.attachmentCount}개` : '',
@@ -62,30 +59,28 @@ export async function downloadLedgerPdf(ledger: Ledger, opts: { title: string; c
 
   autoTable(doc, {
     startY: 27,
-    head: [['연도', '일자', '거래처', '품명', '공급가액', '세액', '합계', '차변계정', '첨부']],
+    head: [['연도', '일자', '거래처', '품명', '금액', '차변계정', '첨부']],
     body,
-    // 임차관리비가 없으면 합계 한 줄, 있으면 경비 / 임차관리비 / 합계
+    // 임차관리비가 없으면 합계 한 줄, 있으면 일반경비 / 임차관리비 / 합계
     foot: ledger.leaseTotal
       ? [
-          ['', '', '', `경비 ${ledger.expenseCount}건`, money(ledger.supply), money(ledger.tax), money(ledger.expenseTotal), '', ''],
-          ['', '', '', '임차관리비', '', '', money(ledger.leaseTotal), '', ''],
-          ['', '', '', '합계', '', '', money(ledger.grandTotal), '', ''],
+          ['', '', '', `일반경비 ${ledger.expenseCount}건`, money(ledger.expenseTotal), '', ''],
+          ['', '', '', '임차관리비', money(ledger.leaseTotal), '', ''],
+          ['', '', '', '합계', money(ledger.grandTotal), '', ''],
         ]
-      : [['', '', '', `합계 (${ledger.expenseCount}건)`, money(ledger.supply), money(ledger.tax), money(ledger.grandTotal), '', '']],
+      : [['', '', '', `합계 (${ledger.expenseCount}건)`, money(ledger.grandTotal), '', '']],
     styles: { font: 'Pretendard', fontSize: 8.5, cellPadding: 1.8, lineColor: [236, 231, 229], lineWidth: 0.1 },
     headStyles: { fillColor: [246, 234, 236], textColor: wine, fontStyle: 'bold' },
     footStyles: { fillColor: [246, 234, 236], textColor: [36, 28, 30], fontStyle: 'bold' },
     columnStyles: {
       0: { cellWidth: 13 },
       1: { cellWidth: 15 },
-      4: { halign: 'right', cellWidth: 26 },
-      5: { halign: 'right', cellWidth: 22 },
-      6: { halign: 'right', cellWidth: 26 },
-      7: { cellWidth: 26 },
-      8: { cellWidth: 12, halign: 'center' },
+      4: { halign: 'right', cellWidth: 28 },
+      5: { cellWidth: 30 },
+      6: { cellWidth: 12, halign: 'center' },
     },
     didParseCell: (data) => {
-      if (data.column.index >= 4 && data.column.index <= 6) data.cell.styles.halign = 'right';
+      if (data.column.index === 4) data.cell.styles.halign = 'right';
       if (data.section === 'head') return;
       const text = String(data.cell.raw ?? '');
       if (text.startsWith('-')) data.cell.styles.textColor = [198, 40, 40];

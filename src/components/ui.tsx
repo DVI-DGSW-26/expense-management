@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { money } from '../lib/format';
+import { FIRST_YEAR, money } from '../lib/format';
 
 // ── 비동기 로딩 ──────────────────────────────────────────────
 
@@ -222,7 +222,7 @@ export const moneyText = (n: number | null | undefined) => (n === null || n === 
 export function YearStepper({ year, onChange }: { year: number; onChange: (y: number) => void }) {
   return (
     <div className="year-stepper">
-      <button type="button" className="icon-btn" onClick={() => onChange(year - 1)} aria-label="이전 해">
+      <button type="button" className="icon-btn" onClick={() => onChange(year - 1)} disabled={year <= FIRST_YEAR} aria-label="이전 해">
         ‹
       </button>
       <span className="year-value">{year}년</span>

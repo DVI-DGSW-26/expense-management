@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { leaseApi } from '../api/endpoints';
-import type { LeaseClearField, LeaseCost, LeaseCostFields, LeaseCostPatch, LeaseFixed } from '../api/types';
+import type { LeaseClearField, LeaseCost, LeaseCostFields, LeaseCostPatch, LeaseFixed, LeaseMonthRow } from '../api/types';
 import { Attachments, FilePicker } from '../components/Attachments';
 import { UploadIcon } from '../components/icons';
 import { LeaseImportModal } from '../components/LeaseImportModal';
 import { Amount, Field, LoadState, Modal, MoneyInput, RequiredNote, YearStepper, moneyText, useAction, useAsync } from '../components/ui';
-import { money, parseMoney, thisYear } from '../lib/format';
+import { money, moneyShort, niceStep, parseMoney, thisYear } from '../lib/format';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const ymLabel = (ym: string) => `${Number(ym.slice(0, 4))}년 ${Number(ym.slice(5, 7))}월`;
@@ -18,6 +18,64 @@ export function Missing() {
 }
 
 const amountOrMissing = (v: number | null) => (v === null ? <Missing /> : <Amount value={v} />);
+
+/** 월별 전기료 막대 그래프. 막대 위에 금액을 적어 한눈에 비교한다. */
+function ElectricityChart({ months }: { months: LeaseMonthRow[] }) {
+  const values = months.map((m) => m.electricity).filter((v): v is number => v !== null);
+  const peak = Math.max(1, ...values);
+  const step = niceStep(peak / 4);
+  const max = Math.ceil(peak / step) * step;
+  const ticks = Array.from({ length: Math.round(max / step) }, (_, i) => (i + 1) * step);
+  const avg = values.length ? Math.round(values.reduce((s, v) => s + v, 0) / values.length) : null;
+  const top = values.length ? months.find((m) => m.electricity === Math.max(...values)) : undefined;
+  return (
+    <figure className="month-chart">
+      <div className="chart-head">
+        <h2>월별 전기료</h2>
+        {avg !== null ? (
+          <p>
+            월평균 <b className="num">{money(avg)}원</b>
+            {top && (
+              <>
+                {' '}· 가장 많은 달 {Number(top.yearMonth.slice(5, 7))}월 <b className="num">{money(top.electricity)}원</b>
+              </>
+            )}
+          </p>
+        ) : (
+          <p>이 해에 입력된 전기료가 없습니다.</p>
+        )}
+      </div>
+      <div className="chart-plot compact" role="img" aria-label="월별 전기료 막대 그래프. 같은 내용이 아래 표의 전기료 칸에 있습니다.">
+        <div className="chart-grid" aria-hidden>
+          {ticks.map((t) => (
+            <span key={t} style={{ bottom: `${(t / max) * 100}%` }}>
+              {moneyShort(Math.round(t))}
+            </span>
+          ))}
+        </div>
+        {months.map((m) => {
+          const mm = Number(m.yearMonth.slice(5, 7));
+          const v = m.electricity;
+          return (
+            <div className="chart-col" key={m.yearMonth} tabIndex={0} aria-label={`${mm}월 전기료 ${v === null ? '미입력' : `${money(v)}원`}`}>
+              <div className="chart-stack">
+                {v !== null && v > 0 && (
+                  <div className="chart-seg" style={{ height: `${(v / max) * 100}%`, background: 'var(--series-lease)' }} />
+                )}
+                {v !== null ? (
+                  <span className="chart-value">{money(v)}</span>
+                ) : (
+                  m.id && <span className="chart-value missing">미입력</span>
+                )}
+              </div>
+              <span className="chart-label">{mm}</span>
+            </div>
+          );
+        })}
+      </div>
+    </figure>
+  );
+}
 
 export function LeasePage() {
   const [year, setYear] = useState(thisYear());
@@ -91,6 +149,8 @@ export function LeasePage() {
       )}
 
       <LoadState loading={table.loading && !data} error={table.error} onRetry={table.reload} />
+
+      {data && <ElectricityChart months={data.months} />}
 
       {data && (
         <div className="ledger-wrap">

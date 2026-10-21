@@ -1,5 +1,6 @@
 import { expenseApi, leaseApi, type PeriodQuery } from '../api/endpoints';
 import type { Expense, ExpenseSource, LeaseMonthRow } from '../api/types';
+import { FIRST_YEAR, cleanItem } from './format';
 
 /** 경비 화면의 구분 필터. LEASE 는 임차관리비만. */
 export type Kind = '' | ExpenseSource | 'LEASE';
@@ -35,17 +36,15 @@ export type Row = { type: 'expense'; date: string; e: Expense } | { type: 'lease
 export interface Ledger {
   rows: Row[];
   expenseCount: number;
-  supply: number;
-  tax: number;
   expenseTotal: number;
   leaseTotal: number;
   grandTotal: number;
 }
 
-/** 연도 선택 목록 */
+/** 연도 선택 목록: 2026년부터 올해까지 */
 export function selectableYears(): number[] {
-  const y = new Date().getFullYear();
-  return Array.from({ length: 6 }, (_, i) => y - 4 + i);
+  const y = Math.max(FIRST_YEAR, new Date().getFullYear());
+  return Array.from({ length: y - FIRST_YEAR + 1 }, (_, i) => FIRST_YEAR + i);
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -121,15 +120,11 @@ export async function loadLedger(f: LedgerFilter): Promise<Ledger> {
     ...leases.map((l) => ({ type: 'lease' as const, date: `${l.yearMonth}-99`, l })),
   ].sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? 1 : -1));
 
-  const supply = expenses.reduce((s, e) => s + e.supplyAmount, 0);
-  const tax = expenses.reduce((s, e) => s + e.taxAmount, 0);
   const expenseTotal = expenses.reduce((s, e) => s + e.totalAmount, 0);
   const leaseTotal = leases.reduce((s, l) => s + l.total, 0);
   return {
     rows,
     expenseCount: expenses.length,
-    supply,
-    tax,
     expenseTotal,
     leaseTotal,
     grandTotal: expenseTotal + leaseTotal,
@@ -138,7 +133,7 @@ export async function loadLedger(f: LedgerFilter): Promise<Ledger> {
 
 // ── 정렬 ─────────────────────────────────────────────
 
-export type SortKey = 'date' | 'vendor' | 'item' | 'supply' | 'tax' | 'total' | 'account' | 'attach';
+export type SortKey = 'date' | 'vendor' | 'item' | 'total' | 'account' | 'attach';
 export type SortDir = 'asc' | 'desc';
 export interface Sort {
   key: SortKey;
@@ -151,11 +146,9 @@ export const SORT_LABEL: Record<SortKey, string> = {
   date: '일자',
   vendor: '거래처',
   item: '품명',
-  supply: '공급가액',
-  tax: '세액',
-  total: '합계',
+  total: '금액',
   account: '차변계정',
-  attach: '첨부파일',
+  attach: '첨부',
 };
 
 /** 처음 누를 때의 방향: 글자는 가나다순, 날짜·금액은 큰 것부터 */
@@ -163,8 +156,6 @@ export const FIRST_DIR: Record<SortKey, SortDir> = {
   date: 'desc',
   vendor: 'asc',
   item: 'asc',
-  supply: 'desc',
-  tax: 'desc',
   total: 'desc',
   account: 'asc',
   attach: 'desc',
@@ -176,7 +167,7 @@ function sortValue(r: Row, key: SortKey): string | number | null {
     if (key === 'item') return '임차관리비';
     if (key === 'total') return r.l.total;
     if (key === 'attach') return r.l.attachmentCount;
-    return null; // 임차관리비에는 거래처·공급가액·세액·계정이 없다
+    return null; // 임차관리비에는 거래처·계정이 없다
   }
   const e = r.e;
   switch (key) {
@@ -185,11 +176,7 @@ function sortValue(r: Row, key: SortKey): string | number | null {
     case 'vendor':
       return e.vendor;
     case 'item':
-      return e.itemName;
-    case 'supply':
-      return e.supplyAmount;
-    case 'tax':
-      return e.taxAmount;
+      return cleanItem(e.itemName);
     case 'total':
       return e.totalAmount;
     case 'account':

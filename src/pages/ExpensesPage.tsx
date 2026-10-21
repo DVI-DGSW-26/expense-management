@@ -7,7 +7,7 @@ import { DownloadIcon, PlusIcon, ResetIcon, UploadIcon } from '../components/ico
 import { ImportModal } from '../components/ImportModal';
 import { Attachments, FilePicker } from '../components/Attachments';
 import { Amount, Field, LoadState, Modal, MoneyInput, RequiredNote, moneyText, useAction, useAsync } from '../components/ui';
-import { money, parseMoney, thisYear, todayIso } from '../lib/format';
+import { cleanItem, money, parseMoney, shortDate, thisYear, todayIso } from '../lib/format';
 import {
   DEFAULT_SORT,
   FIRST_DIR,
@@ -239,15 +239,9 @@ export function ExpensesPage() {
             <dd className="num">{money(data.expenseCount)}</dd>
           </div>
           <div>
-            <dt>공급가액</dt>
+            <dt>일반경비</dt>
             <dd>
-              <Amount value={data.supply} />
-            </dd>
-          </div>
-          <div>
-            <dt>세액</dt>
-            <dd>
-              <Amount value={data.tax} />
+              <Amount value={data.expenseTotal} />
             </dd>
           </div>
           {/* 임차관리비가 있는 기간에만 따로 보여 주고 합계에 더한다 */}
@@ -296,11 +290,9 @@ export function ExpensesPage() {
                 <SortTh label="일자" k="date" sort={sort} onSort={toggleSort} />
                 <SortTh label="거래처" k="vendor" sort={sort} onSort={toggleSort} />
                 <SortTh label="품명" k="item" sort={sort} onSort={toggleSort} />
-                <SortTh label="공급가액" k="supply" sort={sort} onSort={toggleSort} right />
-                <SortTh label="세액" k="tax" sort={sort} onSort={toggleSort} right />
-                <SortTh label="합계" k="total" sort={sort} onSort={toggleSort} right />
+                <SortTh label="금액" k="total" sort={sort} onSort={toggleSort} right />
                 <SortTh label="차변계정" k="account" sort={sort} onSort={toggleSort} />
-                <SortTh label="첨부파일" k="attach" sort={sort} onSort={toggleSort} />
+                <SortTh label="첨부" k="attach" sort={sort} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody>
@@ -375,20 +367,17 @@ function SortTh({
 }
 
 function ExpenseRow({ x, onOpen }: { x: Expense; onOpen: () => void }) {
-  const [y, m, d] = x.expenseDate.split('-');
   return (
     <tr className="clickable" onClick={onOpen}>
-      <td className="num nowrap muted">{y}</td>
-      <td className="num nowrap">
-        {Number(m)}.{Number(d)}
-      </td>
+      <td className="num nowrap muted">{x.expenseDate.slice(0, 4)}</td>
+      <td className="num nowrap">{shortDate(x.expenseDate)}</td>
       <td>
         <button className="row-link" onClick={onOpen}>
           {x.vendor}
         </button>
       </td>
       <td className="muted-cell">
-        {x.itemName}
+        {cleanItem(x.itemName)}
         {x.source === 'SUBSCRIPTION' && <span className="tag">구독</span>}
         {x.currency && x.currency !== 'KRW' && x.foreignAmount != null && (
           <span
@@ -400,23 +389,22 @@ function ExpenseRow({ x, onOpen }: { x: Expense; onOpen: () => void }) {
         )}
       </td>
       <td className="r">
-        <Amount value={x.supplyAmount} />
-      </td>
-      <td className="r">
-        <Amount value={x.taxAmount} />
-      </td>
-      <td className="r">
         <Amount value={x.totalAmount} strong />
       </td>
       <td className="nowrap">{x.debitAccountName}</td>
       <td className="nowrap">
-        {x.attachmentCount > 0 ? (
-          <span className="attach-count">{x.attachmentCount}개</span>
-        ) : (
-          <span className="attach-add">올리기</span>
-        )}
+        <AttachLabel count={x.attachmentCount} />
       </td>
     </tr>
+  );
+}
+
+/** 첨부 칸: 파일이 있으면 개수를 함께 보인다 */
+function AttachLabel({ count }: { count: number }) {
+  return (
+    <span className={`attach-label${count ? ' has' : ''}`}>
+      첨부{count > 0 && <b className="num">{count}</b>}
+    </span>
   );
 }
 
@@ -444,15 +432,13 @@ function LeaseRows({ l, open, onToggle, onEdit }: { l: LeaseRow; open: boolean; 
           </button>
           {missing.length > 0 && <span className="tag tag-warn">{missing.join('·')} 미입력</span>}
         </td>
-        <td className="r muted">–</td>
-        <td className="r muted">–</td>
         <td className="r">
           <Amount value={l.total} strong />
         </td>
         <td className="muted">–</td>
         <td className="nowrap">
-          <button className="link" onClick={(e) => (e.stopPropagation(), onEdit())}>
-            {missing.length ? '청구서 입력' : l.attachmentCount ? `${l.attachmentCount}개` : '수정·첨부'}
+          <button className="attach-btn" onClick={(e) => (e.stopPropagation(), onEdit())}>
+            <AttachLabel count={l.attachmentCount} />
           </button>
         </td>
       </tr>
@@ -464,7 +450,6 @@ function LeaseRows({ l, open, onToggle, onEdit }: { l: LeaseRow; open: boolean; 
               {p.label}
               <span className="part-detail">{p.note}</span>
             </td>
-            <td colSpan={2} />
             <td className="r">
               {p.value === null ? (
                 <button className="link" onClick={onEdit}>

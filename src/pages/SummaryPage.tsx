@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { summaryApi } from '../api/endpoints';
 import type { SummaryAccount, SummaryMonth } from '../api/types';
 import { Amount, LoadState, YearStepper, useAsync } from '../components/ui';
-import { money, moneyShort, thisYear } from '../lib/format';
+import { money, moneyShort, niceStep, thisYear } from '../lib/format';
 
 // 쌓는 순서(아래→위)와 색. 색은 styles.css 의 --series-* 토큰.
 const SERIES = [
@@ -149,12 +149,6 @@ function MonthChart({ months }: { months: SummaryMonth[] }) {
       </div>
     </figure>
   );
-}
-
-/** 1·2·5 × 10ⁿ 중 x 이상인 가장 작은 값 — 눈금 간격용 */
-function niceStep(x: number) {
-  const p = 10 ** Math.floor(Math.log10(x));
-  return ([1, 2, 5, 10].find((k) => k * p >= x) ?? 10) * p;
 }
 
 function AccountBars({ rows, year }: { rows: SummaryAccount[]; year: number }) {

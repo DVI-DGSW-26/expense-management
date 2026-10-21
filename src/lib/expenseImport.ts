@@ -1,6 +1,7 @@
 import { accountApi, expenseApi } from '../api/endpoints';
 import type { DebitAccount, Expense } from '../api/types';
 import type { Cell, Sheet } from './xlsx';
+import { cleanItem } from './format';
 
 /** 엑셀 한 줄을 경비로 바꾼 결과 */
 export interface ImportRow {
@@ -108,7 +109,7 @@ export async function planImport(sheets: Sheet[], accounts: DebitAccount[]): Pro
     if (!r || r.every((c) => clean(c) === '')) continue;
     const vendor = clean(at(r, 'vendor'));
     const businessNumber = clean(at(r, 'businessNumber'));
-    const itemName = clean(at(r, 'item'));
+    const itemName = cleanItem(clean(at(r, 'item')));
     const date = parseDate(at(r, 'date'), at(r, 'year'));
     const supply = parseAmount(at(r, 'supply'));
     const tax = parseAmount(at(r, 'tax')) ?? 0;
@@ -148,7 +149,7 @@ export async function planImport(sheets: Sheet[], accounts: DebitAccount[]): Pro
     ? (await expenseApi.list({ from: newDates[0], to: newDates[newDates.length - 1] })).items
     : [];
   const seen = new Map<string, ImportRow['existing']>(
-    existing.map((e) => [dupKey(e.expenseDate, e.vendor, e.itemName, e.totalAmount), { id: e.id, createdBy: e.createdBy, createdAt: e.createdAt }]),
+    existing.map((e) => [dupKey(e.expenseDate, e.vendor, cleanItem(e.itemName), e.totalAmount), { id: e.id, createdBy: e.createdBy, createdAt: e.createdAt }]),
   );
   for (const r of rows) {
     if (r.status !== 'new') continue;

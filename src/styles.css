@@ -915,22 +915,34 @@ select.input optgroup {
   background: var(--surface-2);
 }
 
-.attach-count {
-  display: inline-block;
-  padding: 2px 12px;
-  border-radius: var(--pill);
-  background: var(--primary-soft);
-  color: var(--primary-text);
-  font-weight: 700;
+/* 첨부 칸: 모든 줄이 "첨부", 파일이 있으면 개수 */
+.attach-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
 }
-.attach-add {
+.attach-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 15px;
   color: var(--muted);
 }
-tr.clickable:hover .attach-add {
+.attach-label.has {
   color: var(--primary-text);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  font-weight: 700;
+}
+.attach-label b {
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: var(--pill);
+  background: var(--primary-soft);
+  text-align: center;
+}
+tr.clickable:hover .attach-label {
+  color: var(--primary-text);
 }
 
 /* 임차관리비 묶음 줄 */
@@ -1353,6 +1365,37 @@ tr.clickable:hover .attach-add {
   margin-left: auto;
   color: var(--ink);
   font-weight: 700;
+}
+/* 임차관리비 전기료 그래프: 막대 위에 금액 */
+.month-chart .chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 20px;
+  margin: 0 0 20px;
+}
+.month-chart .chart-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.month-chart .chart-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+.chart-plot.compact {
+  height: 220px;
+}
+.chart-value {
+  margin-bottom: 4px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.chart-value.missing {
+  color: var(--muted);
 }
 .chart-tip .tip-total {
   margin-top: 4px;
