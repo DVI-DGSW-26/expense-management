@@ -109,10 +109,14 @@ export const accountApi = {
 };
 
 export const attachmentApi = {
-  /** 인증 헤더가 필요하므로 Blob 으로 받아 원본 파일명으로 저장한다 */
-  async download(a: Attachment) {
+  /** 인증 헤더가 필요하므로 fetch 로 Blob 을 받는다 (미리보기·내려받기 공용) */
+  async blob(a: Attachment): Promise<Blob> {
     const res = await request<Response>('GET', `/attachment/${a.id}/download`, { raw: true });
-    const url = URL.createObjectURL(await res.blob());
+    return res.blob();
+  },
+  /** 원본 파일명으로 저장한다 */
+  async download(a: Attachment) {
+    const url = URL.createObjectURL(await attachmentApi.blob(a));
     const link = document.createElement('a');
     link.href = url;
     link.download = a.originalName;
