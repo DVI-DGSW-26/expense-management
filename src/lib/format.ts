@@ -27,11 +27,11 @@ export function bytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
-/** "2026-07-09" → "0709" */
+/** "2026-07-09" → "07.09" */
 export function shortDate(d: string | null | undefined): string {
   if (!d) return '–';
   const [, m, day] = d.split('-');
-  return `${m}${day}`;
+  return `${m}.${day}`;
 }
 
 /** 품명에 붙어 온 # 표시를 뗀다 */
