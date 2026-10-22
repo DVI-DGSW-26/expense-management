@@ -1612,18 +1612,8 @@ tr.clickable:hover .attach-label {
   margin: 8px 0 28px;
   color: var(--ink-2);
 }
-.login-sheet .stack,
-.login-more {
+.login-sheet .stack {
   text-align: left;
-}
-.login-more {
-  margin-top: 28px;
-}
-.login-more summary {
-  cursor: pointer;
-  font-size: 16px;
-  color: var(--ink-2);
-  margin-bottom: 12px;
 }
 
 @media (prefers-reduced-motion: reduce) {

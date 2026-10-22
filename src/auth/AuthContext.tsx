@@ -9,7 +9,6 @@ interface AuthState {
   checking: boolean;
   /** 로그인 서버가 돌려보낸 실패 사유 (#error=) */
   loginError: string | null;
-  signIn: (accessToken: string, refreshToken?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -37,27 +36,6 @@ function takeTokensFromHash(): string | null {
   if (access) tokens.set(access, hash.get('refresh') ?? hash.get('refreshToken') ?? hash.get('refresh_token'));
   history.replaceState(null, '', onCallback ? '/' : window.location.pathname + window.location.search);
   return error;
-}
-
-/**
- * 붙여넣은 텍스트에서 토큰을 꺼낸다.
- * 토큰 응답 JSON 전체를 붙여넣어도 되고, "Bearer " 접두어나 줄바꿈이 섞여 있어도 된다.
- */
-export function parseTokenInput(text: string): { access: string; refresh: string | null } {
-  const trimmed = text.trim();
-  if (trimmed.startsWith('{')) {
-    try {
-      const json = JSON.parse(trimmed);
-      const body = json?.data ?? json;
-      const access = body?.accessToken ?? body?.access_token;
-      if (typeof access === 'string') {
-        return { access, refresh: body?.refreshToken ?? body?.refresh_token ?? null };
-      }
-    } catch {
-      /* JSON 이 아니면 토큰 문자열로 취급 */
-    }
-  }
-  return { access: trimmed.replace(/^Bearer\s+/i, '').replace(/\s+/g, ''), refresh: null };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -89,27 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [load]);
 
-  const signIn = useCallback(
-    async (accessInput: string, refreshInput?: string) => {
-      const parsed = parseTokenInput(accessInput);
-      const refresh = parsed.refresh ?? (refreshInput?.replace(/\s+/g, '') || null);
-      tokens.set(parsed.access, refresh);
-      try {
-        setMe(await authApi.me());
-      } catch (e) {
-        tokens.clear();
-        throw e;
-      }
-    },
-    [],
-  );
-
   const signOut = useCallback(async () => {
     await authApi.logout();
     setMe(null);
   }, []);
 
-  return <AuthContext.Provider value={{ me, checking, loginError, signIn, signOut }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ me, checking, loginError, signOut }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

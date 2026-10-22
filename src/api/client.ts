@@ -9,9 +9,6 @@ export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'https://api.dvi-i
  */
 export const LOGIN_URL = `${API_BASE}/oauth2/authorization/keycloak?redirect=${encodeURIComponent(window.location.origin)}`;
 
-/** 브라우저로 열면 DVI 통합 로그인 후 시험용 토큰을 보여주는 페이지 */
-export const TOKEN_PAGE_URL = `${API_BASE}/login/swagger`;
-
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -74,18 +71,6 @@ export const tokens = {
     };
   },
 };
-
-/** JWT 의 exp(초)를 읽는다. 형식이 아니면 null. */
-export function tokenExpiry(token: string | null): number | null {
-  if (!token) return null;
-  try {
-    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    const json = JSON.parse(atob(payload));
-    return typeof json.exp === 'number' ? json.exp : null;
-  } catch {
-    return null;
-  }
-}
 
 // ── 요청 ─────────────────────────────────────────────────────
 

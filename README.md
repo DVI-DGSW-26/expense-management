@@ -32,8 +32,6 @@ VITE_API_BASE_URL=https://api.dvi-ind.com/expenses
 
 `/auth/callback` 같은 경로를 새로고침해도 열리도록 `vercel.json` 에서 모든 경로를 `index.html` 로 보냅니다.
 
-토큰 발급 페이지(`/expenses/login/swagger`)에서 받은 토큰을 붙여넣는 방식도 로그인 화면의 **토큰을 직접 붙여넣기**에 남겨 두었습니다.
-
 ## 엑셀로 경비 가져오기
 
 경비 화면의 **엑셀 가져오기**에서 .xlsx 파일을 고르면 미리보기 후 `POST /expense/bulk` 한 번으로 등록합니다.
