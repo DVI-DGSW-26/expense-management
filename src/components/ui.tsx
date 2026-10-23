@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { FIRST_YEAR, money } from '../lib/format';
+import { FIRST_YEAR, money, toHalfWidth } from '../lib/format';
 
 // ── 비동기 로딩 ──────────────────────────────────────────────
 
@@ -206,7 +206,8 @@ export function MoneyInput({
         placeholder={placeholder}
         required={required}
         onChange={(e) => {
-          const raw = e.target.value.replace(allowNegative ? /[^\d-]/g : /[^\d]/g, '');
+          // 한글 입력기가 전각 모드면 숫자가 １２３ 으로 들어오므로 반각으로 바꿔서 거른다
+          const raw = toHalfWidth(e.target.value).replace(allowNegative ? /[^\d-]/g : /[^\d]/g, '');
           const neg = allowNegative && raw.startsWith('-');
           const digits = raw.replace(/-/g, '').replace(/^0+(?=\d)/, '');
           onChange((neg ? '-' : '') + (digits ? money(Number(digits)) : ''));

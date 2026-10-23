@@ -13,9 +13,13 @@ export function moneyShort(n: number): string {
   return won.format(n);
 }
 
+/** 한글 입력기의 전각 숫자·빼기(１２３, －)를 반각으로 바꾼다 */
+export const toHalfWidth = (s: string) =>
+  s.replace(/[０-９－]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+
 /** 입력란 문자열 → 정수. 비었거나 숫자가 아니면 null. */
 export function parseMoney(s: string): number | null {
-  const cleaned = s.replace(/[^\d-]/g, '');
+  const cleaned = toHalfWidth(s).replace(/[^\d-]/g, '');
   if (cleaned === '' || cleaned === '-') return null;
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : null;
