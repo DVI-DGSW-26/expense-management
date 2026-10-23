@@ -558,6 +558,8 @@ function ExpenseForm({
   const supplyN = parseMoney(supply);
   const taxN = parseMoney(tax);
   const autoTotal = supplyN !== null ? supplyN + (taxN ?? 0) : null;
+  // 세액은 임차관리비와 같이 공급가액의 10%, 원 미만 버림 (반품 음수도 같은 규칙)
+  const vat10 = Math.trunc((supplyN ?? 0) / 10);
 
   async function submit(ev: FormEvent) {
     ev.preventDefault();
@@ -606,7 +608,21 @@ function ExpenseForm({
       <Field label="공급가액" required hint="반품·취소는 음수(-)로 입력">
         <MoneyInput value={supply} onChange={setSupply} required allowNegative />
       </Field>
-      <Field label="세액" hint="면세면 0">
+      <Field
+        label="세액"
+        hint={
+          supplyN !== null && supplyN !== 0 ? (
+            <>
+              <button type="button" className="link" onClick={() => setTax(money(vat10))}>
+                공급가액의 10% ({money(vat10)}원) 넣기
+              </button>
+              {' · '}면세면 0
+            </>
+          ) : (
+            '면세면 0'
+          )
+        }
+      >
         <MoneyInput
           value={tax}
           onChange={setTax}
@@ -619,14 +635,6 @@ function ExpenseForm({
         <span className="sum-readout num">{autoTotal !== null ? `${money(autoTotal)}원` : '–'}</span>
         <span className="field-hint">공급가액 + 세액으로 자동 계산됩니다.</span>
       </div>
-      {supplyN !== null && !tax && (
-        <p className="span-2 field-hint">
-          세액 10%를 넣으려면{' '}
-          <button type="button" className="link" onClick={() => setTax(money(Math.round(supplyN / 10)))}>
-            {money(Math.round(supplyN / 10))}원 입력
-          </button>
-        </p>
-      )}
       {!initial && (
         <Field label="첨부파일" className="span-2">
           <FilePicker files={files} onChange={setFiles} />

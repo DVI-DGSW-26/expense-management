@@ -225,6 +225,8 @@ function SubscriptionModal({ sub, onClose, onSaved }: { sub: Subscription | null
   const supplyN = parseMoney(supply);
   const taxN = parseMoney(tax) ?? 0;
   const autoTotal = supplyN !== null ? supplyN + taxN : null;
+  // 세액은 공급가액의 10%, 원 미만 버림
+  const vat10 = Math.trunc((supplyN ?? 0) / 10);
   const isPast = !sub && startDate < todayIso();
   const foreign = currency !== 'KRW';
 
@@ -315,7 +317,21 @@ function SubscriptionModal({ sub, onClose, onSaved }: { sub: Subscription | null
             <Field label="회당 공급가액" required>
               <MoneyInput value={supply} onChange={setSupply} required />
             </Field>
-            <Field label="회당 세액">
+            <Field
+              label="회당 세액"
+              hint={
+                supplyN !== null && supplyN !== 0 ? (
+                  <>
+                    <button type="button" className="link" onClick={() => setTax(money(vat10))}>
+                      공급가액의 10% ({money(vat10)}원) 넣기
+                    </button>
+                    {' · '}면세면 0
+                  </>
+                ) : (
+                  '면세면 0'
+                )
+              }
+            >
               <MoneyInput value={tax} onChange={setTax} placeholder="0" />
             </Field>
             <div className="field span-2">
